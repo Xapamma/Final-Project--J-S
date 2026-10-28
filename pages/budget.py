@@ -1,0 +1,431 @@
+"""Session-scoped monthly category budget editor and progress view."""
+
+from datetime import date
+
+import pandas as pd
+import streamlit as st
+
+from dashboard.dashboard_data import (
+    income_for_budget_category,
+    prepare_analytics_transactions,
+    spending_for_budget_category,
+    summarize_transactions,
+)
+from dashboard.final_export import CATEGORY_SUBCATEGORIES
+from dashboard.budget_export import build_budget_rows, build_excel, build_pdf
+
+st.title("Monthly budget")
+st.caption("Choose a month, enter income, then plan each spending and income category. Existing transactions prefill missing targets without replacing limits you set.")
+
+current_month = date.today().replace(day=1)
+selected_month = st.date_input(
+    "Month to budget",
+    value=current_month,
+    format="MM/DD/YYYY",
+    key="budget_month",
+)
+top_download_slot = st.container()
+month_start = pd.Timestamp(selected_month).replace(day=1)
+budget_month_key = month_start.strftime("%Y-%m")
+month_end = month_start + pd.offsets.MonthBegin(1)
+
+if "budget_editor_revision" not in st.session_state:
+    st.session_state.budget_editor_revision = 0
+if st.session_state.get("budget_editor_schema_version") != 4:
+    st.session_state.budget_editor_revision += 1
+    st.session_state.budget_editor_schema_version = 4
+previous_budget_month = st.session_state.get("_budget_widget_month_key")
+if previous_budget_month is not None and previous_budget_month != budget_month_key:
+    st.session_state.budget_editor_revision += 1
+    st.session_state.pop("budget_auto_adjust_notice", None)
+st.session_state._budget_widget_month_key = budget_month_key
+
+if "monthly_budgets_by_month" not in st.session_state:
+    legacy_budgets = st.session_state.get("monthly_budgets", {})
+    st.session_state.monthly_budgets_by_month = (
+        {budget_month_key: dict(legacy_budgets)} if legacy_budgets else {}
+    )
+if "monthly_income_by_month" not in st.session_state:
+    legacy_income = st.session_state.get("monthly_income")
+    st.session_state.monthly_income_by_month = (
+        {budget_month_key: float(legacy_income)} if legacy_income is not None else {}
+    )
+st.session_state.monthly_budgets = st.session_state.monthly_budgets_by_month.setdefault(
+    budget_month_key, {}
+)
+st.session_state.monthly_income = st.session_state.monthly_income_by_month.get(budget_month_key)
+
+income_sources = list(CATEGORY_SUBCATEGORIES["Income"])
+source_budget_keys = {source: f"Income :: {source}" for source in income_sources}
+
+transactions = prepare_analytics_transactions(st.session_state.get("editable_transactions"))
+month_transactions = transactions.loc[
+    (transactions["date"] >= month_start)
+    & (transactions["date"] < month_end)
+    & (transactions["main_category"] != "Transfer")
+]
+monthly_actual_totals = summarize_transactions(month_transactions)
+actual_income_remaining = monthly_actual_totals["income"] - monthly_actual_totals["spending"]
+legacy_month_income = st.session_state.monthly_income_by_month.get(budget_month_key)
+has_actual_income = (month_transactions["amount"] > 0).any()
+if (
+    legacy_month_income
+    and not has_actual_income
+    and not any(key in st.session_state.monthly_budgets for key in source_budget_keys.values())
+):
+    st.session_state.monthly_budgets[source_budget_keys["Other Income"]] = float(legacy_month_income)
+
+monthly_income = st.session_state.monthly_income_by_month.get(budget_month_key)
+if monthly_income is None:
+    monthly_income = sum(
+        float(st.session_state.monthly_budgets.get(source_budget_keys[source], 0.0))
+        for source in income_sources
+    )
+
+budget_main_categories = [
+    "Income",
+    *[
+        category
+        for category in CATEGORY_SUBCATEGORIES
+        if category not in {"Income", "Transfer"}
+    ],
+]
+if not month_transactions.empty:
+    seeded_any = False
+    month_expenses = month_transactions.loc[month_transactions["amount"] < 0]
+    for main_category, main_rows in month_expenses.groupby("main_category"):
+        if main_category not in budget_main_categories or main_category == "Income":
+            continue
+        main_spending = float(-main_rows["amount"].sum())
+        if main_category not in st.session_state.monthly_budgets:
+            st.session_state.monthly_budgets[main_category] = main_spending
+            seeded_any = True
+        for subcategory, subcategory_rows in main_rows.groupby("sub_category"):
+            category_path = f"{main_category} :: {subcategory}"
+            if category_path not in st.session_state.monthly_budgets:
+                st.session_state.monthly_budgets[category_path] = float(
+                    -subcategory_rows["amount"].sum()
+                )
+                seeded_any = True
+
+    month_income = month_transactions.loc[
+        (month_transactions["amount"] > 0)
+    ]
+    month_income = month_income.assign(
+        budget_source=month_income.apply(
+            lambda row: "Dividends"
+            if row["sub_category"] == "Dividends"
+            else row["sub_category"]
+            if row["main_category"] == "Income" and row["sub_category"] in income_sources
+            else "Other Income",
+            axis=1,
+        )
+    )
+    for source, subcategory_rows in month_income.groupby("budget_source"):
+        category_path = f"Income :: {source}"
+        if category_path not in st.session_state.monthly_budgets:
+            st.session_state.monthly_budgets[category_path] = float(
+                subcategory_rows["amount"].sum()
+            )
+            seeded_any = True
+
+    if seeded_any:
+        st.session_state.budget_editor_revision += 1
+
+subcategory_limits_by_main = {}
+category_allocations = {}
+auto_adjustments = []
+
+last_adjustment_notice = st.session_state.pop("budget_auto_adjust_notice", None)
+if last_adjustment_notice:
+    st.warning(last_adjustment_notice)
+
+def current_subcategory_limits(main_category: str) -> dict[str, float]:
+    subcategories = CATEGORY_SUBCATEGORIES[main_category]
+    return {
+        subcategory: float(st.session_state.monthly_budgets[f"{main_category} :: {subcategory}"])
+        for subcategory in subcategories
+        if f"{main_category} :: {subcategory}" in st.session_state.monthly_budgets
+    }
+
+
+for main_category in budget_main_categories:
+    existing_children = current_subcategory_limits(main_category)
+    existing_parent = float(st.session_state.monthly_budgets.get(main_category, 0.0))
+    if main_category == "Income":
+        label_limit = float(monthly_income or sum(existing_children.values()))
+        actual_for_label = income_for_budget_category(month_transactions, "Income")
+    else:
+        label_limit = max(existing_parent, sum(existing_children.values()))
+        actual_for_label = spending_for_budget_category(month_transactions, main_category)
+    label_balance = label_limit - actual_for_label
+    if label_limit > 0:
+        label_amount = f"${label_limit:,.0f} planned · ${label_balance:,.0f} left"
+    elif main_category == "Income":
+        label_amount = "Set an income"
+    else:
+        label_amount = "Set a limit"
+
+    with st.expander(f"{main_category} · {label_amount}", expanded=main_category == "Income"):
+        if main_category == "Income":
+            st.caption("Set a monthly amount for each income source below.")
+        else:
+            monthly_limit = st.number_input(
+                f"Total monthly limit ($) · {main_category}",
+                min_value=0.0,
+                value=float(st.session_state.monthly_budgets.get(main_category, 0.0)),
+                step=25.0,
+                format="%.2f",
+                key=f"budget_limit_{st.session_state.budget_editor_revision}_{main_category}",
+            )
+            if monthly_limit is not None and monthly_limit > 0:
+                st.session_state.monthly_budgets[main_category] = float(monthly_limit)
+            else:
+                st.session_state.monthly_budgets.pop(main_category, None)
+
+        subcategories = CATEGORY_SUBCATEGORIES[main_category]
+        with st.expander(
+            f"Subcategories · {len(subcategories)}",
+            expanded=main_category == "Income",
+        ):
+            for subcategory in subcategories:
+                category_path = f"{main_category} :: {subcategory}"
+                monthly_limit = st.number_input(
+                    f"Monthly limit ($) · {subcategory}",
+                    min_value=0.0,
+                    value=float(st.session_state.monthly_budgets.get(category_path, 0.0)),
+                    step=25.0,
+                    format="%.2f",
+                    key=f"budget_limit_{st.session_state.budget_editor_revision}_{category_path}",
+                )
+                if monthly_limit is not None and monthly_limit > 0:
+                    st.session_state.monthly_budgets[category_path] = float(monthly_limit)
+                else:
+                    st.session_state.monthly_budgets.pop(category_path, None)
+
+            # Auto "Other" subcategory: whenever the main-category limit exceeds the combined
+            # subcategory limits, surface the difference as a read-only "Other" row.
+            subcategory_limits = current_subcategory_limits(main_category)
+            auto_parent = float(st.session_state.monthly_budgets.get(main_category, 0.0))
+            auto_subtotal = sum(subcategory_limits.values())
+            other_value = round(auto_parent - auto_subtotal, 2)
+            if main_category != "Income" and other_value > 0:
+                st.number_input(
+                    f"Monthly limit ($) · Other",
+                    min_value=0.0,
+                    value=other_value,
+                    format="%.2f",
+                    disabled=True,
+                    key=(
+                        f"budget_other_"
+                        f"{st.session_state.budget_editor_revision}"
+                        f"_{main_category}"
+                    ),
+                )
+                st.caption(
+                    "'Other' automatically covers the difference between the main-category "
+                    "limit and the combined subcategory limits."
+                )
+
+    subcategory_limits = current_subcategory_limits(main_category)
+    subcategory_total = sum(subcategory_limits.values())
+    parent_limit = float(st.session_state.monthly_budgets.get(main_category, 0.0))
+    other_difference = round(parent_limit - subcategory_total, 2)
+    if main_category != "Income" and other_difference > 0:
+        subcategory_limits["Other"] = other_difference
+        subcategory_total = parent_limit
+    subcategory_limits_by_main[main_category] = subcategory_limits
+    if main_category == "Income":
+        monthly_income = subcategory_total
+        st.session_state.monthly_income = monthly_income or None
+        if monthly_income > 0:
+            st.session_state.monthly_income_by_month[budget_month_key] = monthly_income
+            category_allocations[main_category] = monthly_income
+        else:
+            st.session_state.monthly_income_by_month.pop(budget_month_key, None)
+        st.metric("Total monthly income", f"${monthly_income:,.2f}")
+        continue
+
+    effective_limit = max(parent_limit, subcategory_total)
+    actual_spending = spending_for_budget_category(month_transactions, main_category)
+    if effective_limit > 0:
+        required_limit = max(effective_limit, actual_spending)
+        if required_limit > parent_limit:
+            st.session_state.monthly_budgets[main_category] = required_limit
+            category_allocations[main_category] = required_limit
+            auto_adjustments.append((main_category, required_limit))
+        else:
+            category_allocations[main_category] = effective_limit
+
+income_source_limits = current_subcategory_limits("Income")
+subcategory_limits_by_main["Income"] = income_source_limits
+if monthly_income > 0:
+    category_allocations["Income"] = monthly_income
+
+if auto_adjustments:
+    adjustment_details = ", ".join(
+        f"{main}: ${amount:,.2f}" for main, amount in auto_adjustments
+    )
+    st.session_state.budget_auto_adjust_notice = (
+        "Main-category limits were increased to cover their subcategory plans or selected-month spending: "
+        + adjustment_details
+        + "."
+    )
+    st.session_state.budget_editor_revision += 1
+    st.rerun()
+
+expense_allocation = sum(
+    amount for category, amount in category_allocations.items() if category != "Income"
+)
+income_remaining = None if monthly_income is None else monthly_income - expense_allocation
+with st.sidebar:
+    st.divider()
+    st.subheader("Income allocation")
+    st.metric(
+        "Monthly income",
+        "Set above" if monthly_income is None else f"${monthly_income:,.2f}",
+    )
+    st.metric("Spending limits", f"${expense_allocation:,.2f}")
+    st.metric(
+        "Income unallocated",
+        "Set monthly income" if income_remaining is None else f"${income_remaining:,.2f}",
+    )
+
+st.subheader(f"Budget progress · {month_start:%B %Y}")
+if category_allocations:
+    for main_category, limit in category_allocations.items():
+        is_income = main_category == "Income"
+        actual = (
+            income_for_budget_category(month_transactions, main_category)
+            if is_income
+            else spending_for_budget_category(month_transactions, main_category)
+        )
+        remaining = limit - actual
+        heading_columns = st.columns([3, 1])
+        with heading_columns[0]:
+            st.subheader(main_category)
+        with heading_columns[1]:
+            balance = actual_income_remaining if is_income else remaining
+            st.metric("Income remaining" if is_income else "Amount left", f"${balance:,.2f}")
+        if limit > 0:
+            st.progress(min(actual / limit, 1.0))
+            st.caption(
+                f"${actual:,.2f} received of ${limit:,.2f} planned"
+                if is_income
+                else f"${actual:,.2f} spent of ${limit:,.2f} allocated"
+            )
+
+        subcategory_limits = subcategory_limits_by_main[main_category]
+        if subcategory_limits:
+            for subcategory, subcategory_limit in subcategory_limits.items():
+                category_path = f"{main_category} :: {subcategory}"
+                subcategory_actual = (
+                    income_for_budget_category(month_transactions, category_path)
+                    if is_income
+                    else spending_for_budget_category(month_transactions, category_path)
+                )
+                subcategory_remaining = subcategory_limit - subcategory_actual
+                with st.expander(
+                    f"{subcategory} · ${subcategory_actual:,.2f} "
+                    f"{'received' if is_income else 'spent'} of ${subcategory_limit:,.2f}"
+                ):
+                    st.caption(f"${subcategory_remaining:,.2f} left")
+                    if subcategory_remaining < 0:
+                        st.warning(
+                            f"{subcategory} is ${-subcategory_remaining:,.2f} over its limit."
+                        )
+                    subcategory_transactions = month_transactions.loc[
+                        (month_transactions["main_category"] == main_category)
+                        & (month_transactions["sub_category"] == subcategory)
+                    ].sort_values("date", ascending=False, kind="stable")
+                    if subcategory_transactions.empty:
+                        st.caption("No transactions for this subcategory in the selected month.")
+                    else:
+                        transaction_details = subcategory_transactions[
+                            ["date", "description", "merchant", "amount"]
+                        ].copy()
+                        transaction_details["date"] = transaction_details["date"].dt.strftime(
+                            "%m/%d/%Y"
+                        )
+                        st.dataframe(
+                            transaction_details,
+                            width='stretch',
+                            hide_index=True,
+                        )
+        if remaining < 0 and not is_income:
+            st.error(f"{main_category} is ${-remaining:,.2f} over its main-category budget.")
+else:
+    st.info("Enter a main-category or subcategory limit above to see budget balances here.")
+
+if monthly_income is not None:
+    if income_remaining < 0:
+        st.error(
+            f"Your category plan is ${-income_remaining:,.2f} over monthly income. "
+            "Reduce a category limit or reduce the savings allocation."
+        )
+    elif income_remaining > 0:
+        st.warning(
+            f"${income_remaining:,.2f} of monthly income is unallocated. "
+            "Assign the remainder to Savings & Investments to give every dollar a plan."
+        )
+        if st.button("Allocate remainder to Savings & Investments"):
+            savings_budget = category_allocations.get("Savings & Investments", 0.0)
+            st.session_state.monthly_budgets["Savings & Investments"] = (
+                savings_budget + income_remaining
+            )
+            st.session_state.budget_editor_revision += 1
+            st.rerun()
+    else:
+        st.success("Monthly income is fully allocated across your category plan.")
+
+if transactions.empty:
+    st.caption("Import transactions to calculate actual spending against these limits.")
+else:
+    st.caption("Budgets compare against the current session's edited transactions for the selected month.")
+
+st.caption("Budgets are kept in the current Streamlit session and clear when the session ends.")
+
+
+def actual_for(main_category: str, path: str) -> float:
+    if main_category == "Income":
+        return income_for_budget_category(month_transactions, path)
+    return spending_for_budget_category(month_transactions, path)
+
+
+export_rows = build_budget_rows(
+    month_start, category_allocations, subcategory_limits_by_main, actual_for
+)
+
+
+def render_download_buttons(container, position: str) -> None:
+    pdf_column, excel_column, _ = container.columns([1, 1, 3])
+    if not export_rows:
+        clicked = [
+            pdf_column.button("Download PDF", key=f"download_pdf_{position}"),
+            excel_column.button("Download Excel", key=f"download_excel_{position}"),
+        ]
+        if any(clicked):
+            container.error(
+                "There is no budget plan to download yet. Set at least one limit above first."
+            )
+        return
+    file_stem = f"budget_plan_{budget_month_key}"
+    pdf_column.download_button(
+        "Download PDF",
+        data=build_pdf(month_start, export_rows, monthly_income),
+        file_name=f"{file_stem}.pdf",
+        mime="application/pdf",
+        key=f"download_pdf_{position}",
+    )
+    excel_column.download_button(
+        "Download Excel",
+        data=build_excel(month_start, export_rows, monthly_income),
+        file_name=f"{file_stem}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key=f"download_excel_{position}",
+    )
+
+
+render_download_buttons(top_download_slot, "top")
+st.divider()
+render_download_buttons(st.container(), "bottom")

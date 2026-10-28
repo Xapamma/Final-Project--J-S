@@ -46,7 +46,7 @@
 
 - **Baselines:** always predicting the most common category, and a simple lookup that assigns each description the category it had most often in the training data.
 - **Our contribution:** the category guide, the cleaning pipeline for multiple banks, the labeled dataset, and experiments showing what affects categorization accuracy.
-- **Credit:** The import approach comes from Person A's existing dashboard repository (linked). We will use scikit-learn and pandas and disclose any AI help in `report.md`.
+- **Credit:** The import approach comes from Person A's existing dashboard repository (linked). We will use scikit-learn and pandas and disclose any AI help in `docs/report.md`.
 
 ## Evaluation and evidence
 
@@ -66,7 +66,7 @@
 ## Reproducibility and team contributions
 
 - **Repository:** code, data instructions (no real data), results, and `report.md` will live in our new project repository, with `pyproject.toml`, `uv.lock`, and the Python version committed.
-- **First runnable result (Nov. 5):** load and clean a first batch of each person's data and report basic quality checks. Also implement test embeddings and try a simple ML method like KNN to see how it works and if this is the right direction for our project.
+- **First runnable result (Nov. 5):** load and clean a first batch of each person's data and report basic quality checks. Also implement text embeddings and try a simple ML method like KNN to see how it works and if this is the right direction for our project.
 - **Team contributions:** Savanna leads training; Jillian leads testing. We will write the category guide together, label our own data, label a shared sample, and review each other's code.
 - **Instructor feedback requested:** confirmation that using our own private financial data is fine with these precautions, and whether this dataset work is substantial enough for Route C.
 

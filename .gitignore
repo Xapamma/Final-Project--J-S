@@ -1,0 +1,24 @@
+# ── Python ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# ── Virtual environment (uv) ──────────────────────────────
+.venv/
+
+# ── Streamlit ─────────────────────────────────────────────
+.streamlit/secrets.toml
+
+# ── Editors / OS ──────────────────────────────────────────
+.vscode/
+.idea/
+.env
+.DS_Store
+
+# ── Private financial data & generated datasets ──────────
+# Raw statement exports must NEVER be committed (see README privacy notes).
+.data/
+/all_banks_final_categorized.csv
+/all_banks_final_ml_categorized.csv
