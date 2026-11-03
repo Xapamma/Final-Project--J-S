@@ -11,9 +11,9 @@ sub_category_map, category_hierarchy, merchant cache, and the
 
 Labeling is now up to US:
 
-    1. `ml/bank_statment_processor.py` builds a clean, UNLABELED dataset
-       at `all_banks_final_categorized.csv`. The `main_category` and
-       `sub_category` columns are empty on purpose.
+    1. `ml/bank_statment_processor.py` builds one clean, UNLABELED dataset
+       per person. The `main_category` and `sub_category` columns are empty
+       on purpose.
     2. We hand-label some rows in that CSV (this IS our training data).
        Picking our own category for every transaction is the "users
        select their own categories" part.
@@ -27,7 +27,7 @@ MANUAL WORKFLOW (what we do BY HAND)
             python -m ml.bank_statment_processor
 
   STEP 2  Label a batch of transactions
-            Open `all_banks_final_categorized.csv` and fill in
+            Open the generated person CSV and fill in
             `main_category` and `sub_category` for as many rows as we
             can. (Split the file between us to go twice as fast.)
 
@@ -71,7 +71,7 @@ DATASET COLUMNS WE WORK WITH (output of bank_statement_processor.py)
 import pandas as pd
 import numpy as np
 
-CSV_PATH = "all_banks_final_categorized.csv"  # produced by bank_statement_processor.py
+CSV_PATH = "savanna_transactions.csv"  # produced by bank_statment_processor.py
 
 
 # ---------------------------------------------------------------------------
