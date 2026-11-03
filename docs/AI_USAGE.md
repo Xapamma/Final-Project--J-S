@@ -29,6 +29,7 @@ also lives in `report.md` (§ 7).
 |------|-------------|-------|-------------|
 | 2026-10-27 | Replaced the rule-based categorizer with a manual-labeling workflow: categories now start blank in the scripts and the Streamlit app (now our labeling tool); scaffolded `ml/ml_models.py` (TODO stubs only, no training code written); wrote tests (31 passing) and the docs. | `ml/bank_statment_processor.py`, `dashboard/cleaning_logic.py`, `dashboard.py`, `app.py`, `ml/ml_models.py`, `tests/`, `docs/` | Savanna & Jillian |
 | 2026-10-27 | Reorganized the repo for clarity: moved project docs into `docs/`, shared dashboard modules into the `dashboard/` package, headless pipeline + ML scripts into `ml/`; removed the redundant `bank_data_analytics.py`; added `.gitignore`; stopped tracking private data (`.data/`, `all_banks_final_categorized.csv`) and `__pycache__`. | repo layout: `docs/`, `dashboard/`, `ml/`, `tests/`, `.gitignore` | Savanna & Jillian |
+| 2026-11-02 | Added an optional resume flow that loads a prior website CSV download, preserves existing category labels, and lets users continue labeling uncategorized rows in a new session. | `app.py`, `dashboard/final_export.py`, `tests/` | Savanna & Jillian |
 
 Notes on what the assistant saw/touched:
 

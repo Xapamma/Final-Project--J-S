@@ -23,5 +23,5 @@ st.page_link(
 
 st.info(
     "Imported transactions and budget targets are kept in your current Streamlit session. "
-    "They are cleared when that session ends; download your categorized transactions to keep a copy."
+    "They are cleared when that session ends; download your transactions to keep a copy."
 )

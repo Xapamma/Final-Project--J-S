@@ -39,6 +39,7 @@ from dashboard.final_export import (
     normalize_account_type,
     normalize_bank_name,
     normalize_export_filename,
+    previous_export_to_standardized,
     restored_rows_to_standardized,
     split_duplicate_transactions,
     split_filtered_transactions,
@@ -257,14 +258,40 @@ class ValidationAndReviewTests(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(len(result), 1)
 
-    def test_validate_rejects_blank_categories(self):
+    def test_validate_accepts_blank_categories(self):
         rows = pd.DataFrame(
             [["06/01/2026", "Coffee", "Coffee Shop", "debit", -4.5, None, None, "sofi", "savings"]],
             columns=FINAL_EXPORT_COLUMNS,
         )
         result, error = validate_final_export_rows(rows)
+        self.assertIsNone(error)
+        self.assertEqual(len(result), 1)
+
+    def test_previous_export_preserves_categories_and_review_state(self):
+        rows = pd.DataFrame(
+            [
+                ["06/01/2026", "Coffee", "Coffee Shop", "debit", -4.5, "Food & Dining", "Restaurants/Dining", "sofi", "savings"],
+                ["06/02/2026", "Payroll", "Payroll", "credit", 1200.0, "", "", "sofi", "savings"],
+            ],
+            columns=FINAL_EXPORT_COLUMNS,
+        )
+        standardized, editable = previous_export_to_standardized(
+            rows,
+            source_file="previous export: saved.csv",
+        )
+        self.assertEqual(standardized["source_file"].unique().tolist(), ["previous export: saved.csv"])
+        self.assertEqual(editable["main_category"].tolist(), ["Food & Dining", ""])
+        self.assertEqual(editable["_category_reviewed"].tolist(), [True, False])
+        self.assertEqual(editable["_source_row"].tolist(), [2, 3])
+
+    def test_validate_rejects_partial_categories(self):
+        rows = pd.DataFrame(
+            [["06/01/2026", "Coffee", "Coffee Shop", "debit", -4.5, "Food & Dining", None, "sofi", "savings"]],
+            columns=FINAL_EXPORT_COLUMNS,
+        )
+        result, error = validate_final_export_rows(rows)
         self.assertIsNotNone(error)
-        self.assertIn("Main Category", error)
+        self.assertIn("both be provided", error)
 
     def test_validate_rejects_subcategory_outside_selected_main_category(self):
         rows = pd.DataFrame(

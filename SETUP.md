@@ -63,8 +63,10 @@ Pages:
 
 * **Home** – overview of the workflow.
 * **Process statements** – upload bank CSVs, pick bank/column mapping, review
-  rows, assign category pairs, download the labeled CSV. Categories are never
-  auto-filled; use the review panel to label every row before download is enabled.
+  rows, optionally assign category pairs, and download the CSV. Categories are
+  never auto-filled; rows may remain uncategorized, or you can label them in
+  the review panel. To continue in a later session, upload the prior website
+  CSV download and choose **Load previous download and resume labeling**.
 * **Overview / Analytics** – charts of income, spending, and category totals.
 * **Budget** – monthly budget planning.
 
@@ -109,7 +111,8 @@ Run after any change that touches importing, onboarding, or export logic.
 ## 8. Common issues
 
 * `streamlit` not found → run `uv sync` first.
-* App rejects a download → some rows still lack a category pair; use the
-  "category review" panel on the Process page to finish labeling.
+* App rejects a download → one or more rows have missing required transaction
+  fields, an invalid date or amount, or only half of a category pair. Categories
+  may be left blank, but Main Category and Sub Category must be filled together.
 * New bank CSV won't parse → use the app's "Other / new bank" flow and map the
   columns; then note the layout below `dashboard/bank_profiles.json`.

@@ -174,7 +174,11 @@ def normalize_export_filename(value: str) -> str:
 def validate_final_export_rows(
     transactions: pd.DataFrame,
 ) -> tuple[pd.DataFrame, str | None]:
-    """Drop fully blank editor rows and validate rows before CSV download."""
+    """Drop fully blank editor rows and validate rows before CSV download.
+
+    Categories are optional, but when supplied they must be a complete,
+    recognized main/sub-category pair.
+    """
     missing_columns = set(FINAL_EXPORT_COLUMNS) - set(transactions.columns)
     if missing_columns:
         raise ValueError(f"Missing final export columns: {sorted(missing_columns)}.")
@@ -205,7 +209,9 @@ def validate_final_export_rows(
                 problems.append("Date must use MM/DD/YYYY on every row.")
             else:
                 result[column] = dates.dt.strftime("%m/%d/%Y")
-        elif values.isna().any() or values.eq("").any():
+        elif column not in {"main_category", "sub_category"} and (
+            values.isna().any() or values.eq("").any()
+        ):
             problems.append(f"{column.replace('_', ' ').title()} is required on every row.")
 
     if problems:
@@ -215,8 +221,16 @@ def validate_final_export_rows(
     if invalid_types.any():
         problems.append("Type must be debit or credit on every row.")
 
-    invalid_categories = result.apply(
-        lambda row: row["sub_category"] not in CATEGORY_SUBCATEGORIES.get(row["main_category"], []),
+    category_values = result[["main_category", "sub_category"]].astype("string").apply(
+        lambda column: column.str.strip()
+    )
+    main_blank = category_values["main_category"].isna() | category_values["main_category"].eq("")
+    sub_blank = category_values["sub_category"].isna() | category_values["sub_category"].eq("")
+    if (main_blank ^ sub_blank).any():
+        problems.append("Main Category and Sub Category must both be provided or both be blank.")
+
+    invalid_categories = (~main_blank & ~sub_blank) & ~result.apply(
+        lambda row: row["sub_category"] in CATEGORY_SUBCATEGORIES.get(row["main_category"], []),
         axis=1,
     )
     if invalid_categories.any():
@@ -225,6 +239,46 @@ def validate_final_export_rows(
     if problems:
         return result, " ".join(problems)
     return result.reset_index(drop=True), None
+
+
+def previous_export_to_standardized(
+    transactions: pd.DataFrame,
+    *,
+    source_file: str,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Convert a prior website export into importer and editable-session rows."""
+    validated, error = validate_final_export_rows(transactions)
+    if error:
+        raise ValueError(f"Previous export is not valid: {error}")
+
+    standardized = pd.DataFrame(index=range(len(validated)), columns=STANDARD_COLUMNS)
+    standardized["transaction_id"] = pd.NA
+    standardized["date"] = pd.to_datetime(
+        validated["date"], format="%m/%d/%Y", errors="raise"
+    ).reset_index(drop=True)
+    standardized["posted_date"] = pd.NaT
+    standardized["description"] = validated["description"].reset_index(drop=True)
+    standardized["amount"] = validated["amount"].reset_index(drop=True).astype("float64")
+    standardized["transaction_type"] = validated["type"].reset_index(drop=True)
+    standardized["bank_category"] = pd.NA
+    standardized["status"] = pd.NA
+    standardized["bank"] = validated["bank"].reset_index(drop=True)
+    standardized["account"] = validated["account"].reset_index(drop=True)
+    standardized["currency"] = pd.NA
+    standardized["source_file"] = source_file
+    standardized["source_row"] = pd.Series(range(2, len(validated) + 2), dtype="int64")
+
+    editable = validated.copy()
+    editable["_source_file"] = source_file
+    editable["_source_row"] = standardized["source_row"].to_numpy()
+    category_values = editable[["main_category", "sub_category"]].astype("string")
+    editable["_category_reviewed"] = (
+        category_values["main_category"].str.strip().ne("")
+        & category_values["sub_category"].str.strip().ne("")
+    )
+    return standardized, editable[FINAL_EXPORT_COLUMNS + [
+        "_source_file", "_source_row", "_category_reviewed"
+    ]]
 
 
 def edited_row_problem(
@@ -278,16 +332,19 @@ def get_final_export_row_issues(transactions: pd.DataFrame) -> dict[int, list[st
         if pd.isna(amount):
             issues.append("Amount must be a valid number.")
 
-        for column in (
-            "description", "merchant", "type", "main_category", "sub_category", "bank", "account"
-        ):
+        for column in ("description", "merchant", "type", "bank", "account"):
             if blank(row[column]):
                 issues.append(f"{column.replace('_', ' ').title()} is required.")
+
+        main_blank = blank(row["main_category"])
+        sub_blank = blank(row["sub_category"])
+        if main_blank != sub_blank:
+            issues.append("Main Category and Sub Category must both be provided or both be blank.")
 
         if not blank(row["type"]) and row["type"] not in ("debit", "credit"):
             issues.append("Type must be debit or credit.")
 
-        if not blank(row["main_category"]) and not blank(row["sub_category"]):
+        if not main_blank and not sub_blank:
             if row["sub_category"] not in CATEGORY_SUBCATEGORIES.get(row["main_category"], []):
                 issues.append("Sub-category does not belong to the selected main category.")
 

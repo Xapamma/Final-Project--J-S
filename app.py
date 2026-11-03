@@ -41,6 +41,7 @@ from dashboard.final_export import (
     normalize_bank_name,
     normalize_export_filename,
     make_transfer_review_rows,
+    previous_export_to_standardized,
     restored_rows_to_standardized,
     split_duplicate_transactions,
     split_filtered_transactions,
@@ -250,6 +251,15 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True,
     help="Files are processed in this app session and are not sent to an external service.",
 )
+previous_export_file = st.file_uploader(
+    "Resume from a previous website CSV download (optional)",
+    type=["csv"],
+    key="previous_export_file",
+    help=(
+        "Upload a CSV previously downloaded here to keep its existing categories "
+        "and continue labeling the remaining transactions."
+    ),
+)
 
 if "standardized_transactions" not in st.session_state:
     st.session_state.standardized_transactions = pd.DataFrame(columns=STANDARD_COLUMNS)
@@ -360,7 +370,41 @@ with st.sidebar:
                 st.session_state.pop("statement_to_remove", None)
                 st.rerun()
 
-    
+if previous_export_file is not None:
+    if st.button("Load previous download and resume labeling", type="primary"):
+        try:
+            previous_rows = pd.read_csv(
+                io.BytesIO(previous_export_file.getvalue()),
+                dtype="string",
+                keep_default_na=False,
+                encoding="utf-8-sig",
+            )
+            resume_source = f"previous export: {previous_export_file.name}"
+            resumed_standardized, resumed_editable = previous_export_to_standardized(
+                previous_rows,
+                source_file=resume_source,
+            )
+            st.session_state.standardized_transactions = resumed_standardized
+            st.session_state.editable_transactions = resumed_editable
+            st.session_state.dropped_transactions = pd.DataFrame(
+                columns=DROPPED_REVIEW_COLUMNS
+            )
+            st.session_state.file_import_signatures = {}
+            st.session_state.pop(
+                f"export_editor_{st.session_state.export_editor_revision}", None
+            )
+            st.session_state.pop(
+                f"dropped_editor_{st.session_state.dropped_editor_revision}", None
+            )
+            st.session_state.export_editor_revision += 1
+            st.session_state.dropped_editor_revision += 1
+            st.success(
+                f"Loaded {len(resumed_editable):,} transactions from "
+                f"{previous_export_file.name}. Existing categories were kept."
+            )
+            st.rerun()
+        except (ImportFormatError, OSError, ValueError) as error:
+            st.error(f"This previous download could not be loaded: {error}")
 
 if uploaded_files:
     st.subheader("1. Choose a statement")
@@ -1226,33 +1270,14 @@ if (
     download_data = sort_rows_by_date(download_data).reset_index(drop=True)
     if pair_mismatch.any():
         validation_error = "Choose a sub-category whose displayed main category matches the Main category column."
-    unreviewed_mask = ~edited_source_metadata["_category_reviewed"].fillna(False).astype(bool)
-    if unreviewed_mask.any():
-        validation_error = (
-            f"Assign a category to {int(unreviewed_mask.sum())} transaction(s) before downloading. "
-            "Categories are blank until you choose them (that is the labeling step)."
-        )
     row_issues = get_final_export_row_issues(edited_transactions)
     for row_index in pair_mismatch[pair_mismatch].index:
         row_issues.setdefault(int(row_index), []).append(
             "Sub-category does not match the selected Main category."
         )
-    for row_index in unreviewed_mask[unreviewed_mask].index:
-        row_issues.setdefault(int(row_index), []).append(
-            "Category needs review before download."
-        )
-
     if row_issues:
         issue_kinds = {tuple(issues) for issues in row_issues.values()}
-        only_category_review = issue_kinds == {("Category needs review before download.",)}
-        if only_category_review:
-            st.warning(
-                f"{len(row_issues):,} transaction(s) still need a category label "
-                "before downloading. Choose a category pair for each one in the "
-                "review panel or the editable table."
-            )
-        else:
-            st.error(f"{len(row_issues):,} transaction(s) need changes before downloading.")
+        st.error(f"{len(row_issues):,} transaction(s) need changes before downloading.")
     amounts = pd.to_numeric(download_data["amount"], errors="coerce")
     metric_columns = st.columns(3)
     metric_columns[0].metric("Transactions", f"{len(download_data):,}")
@@ -1271,7 +1296,7 @@ if (
         else:
             st.warning(validation_error)
     st.download_button(
-        "Download categorized transactions",
+        "Download transactions",
         data=download_data.to_csv(index=False).encode("utf-8-sig"),
         file_name=export_filename,
         mime="text/csv",
