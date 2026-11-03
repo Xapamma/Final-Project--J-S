@@ -6,7 +6,7 @@ Updated: October 27, 2026
 This repo has **two tools side by side**:
 
 1. **Script pipeline** – normalizes raw bank CSVs into one clean table
-   (`ml/bank_statment_processor.py` → `all_banks_final_categorized.csv`),
+   (`ml/bank_statment_processor.py` → `savanna_transactions.csv` + `jillian_transactions.csv`),
    plus the ML experiments that answer our project question (`ml/ml_models.py`).
 2. **Streamlit dashboard** – the interactive labeling/import tool
    (`streamlit run dashboard.py`).
@@ -41,13 +41,14 @@ This installs everything in `pyproject.toml` into the project's `.venv`.
 ## 3. Script pipeline (headless / reproducible run)
 
 ```bash
-# Build the clean, UNLABELED dataset from the CSVs in .data/
+# Build the clean, UNLABELED datasets (one per person) from the CSVs in .data/
 uv run python -m ml.bank_statment_processor
 ```
 
 Outputs:
 
-* `all_banks_final_categorized.csv` – columns:
+* `savanna_transactions.csv` (Person A, training) and
+  `jillian_transactions.csv` (Person B, testing) – same columns in both:
   `date, description, raw_description, type, amount, main_category,
   sub_category, bank, account`.
 * `main_category` / `sub_category` start **blank on purpose**. Fill them in by
@@ -80,7 +81,7 @@ Pages:
 uv run python -c "from ml.ml_models import train_and_categorize; train_and_categorize()"
 ```
 
-5. Cross-person experiment (after adding a `person` column A/B):
+5. Cross-person experiment (train on Savanna's file, test on Jillian's):
 
 ```bash
 uv run python -c "from ml.ml_models import cross_person_experiment; cross_person_experiment()"
@@ -91,7 +92,9 @@ uv run python -c "from ml.ml_models import cross_person_experiment; cross_person
 
 ## 6. Using your own bank exports (data instructions)
 
-* Drop one sub-folder per bank under `.data/` (e.g. `.data/sofi/sofi_checking.csv`).
+* Put each person's exports under `.data/<person>/<bank>/` (e.g.
+  `.data/savanna/sofi/sofi_checking.csv`, `.data/jillian/gwcu/gwcu_checking.csv`).
+  Person folders must be named `savanna` and `jillian`.
 * Known layouts (Goldenwest, SoFi, Capital One) are auto-detected by filename;
   the Streamlit app also has a column-mapping UI for other banks.
 * **Privacy:** raw statements and the labeled dataset are private per our plan —
