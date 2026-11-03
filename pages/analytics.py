@@ -225,7 +225,7 @@ filtered_transactions = filter_transactions_by_category(
 )
 search_query = st.text_input(
     "Search transactions",
-    placeholder="Description, merchant, category, amount...",
+    placeholder=    "Description, category, amount...",
     key="analytics_transaction_search",
 ).strip()
 previous_search_query = st.session_state.get("_previous_analytics_transaction_search")
@@ -240,7 +240,7 @@ if search_query:
     searchable_rows = [
         " ".join(row)
         for row in filtered_transactions[
-            ["date", "description", "merchant", "amount", "main_category", "sub_category"]
+            ["date", "description", "amount", "main_category", "sub_category"]
         ].astype("string").fillna("").to_numpy(dtype=str)
     ]
     matching_indices = fuzzy_match_indices(search_query, searchable_rows)
@@ -260,7 +260,7 @@ else:
         st.session_state.analytics_transaction_editor_revision = 0
     transaction_editor_data = category_editor_data(
         displayed_transactions,
-        ["date", "description", "merchant", "amount", "main_category", "sub_category"],
+        ["date", "description", "amount", "main_category", "sub_category"],
     )
     transaction_editor_data["date"] = transaction_editor_data["date"].dt.strftime("%m/%d/%Y")
     edited_transactions = st.data_editor(
@@ -272,7 +272,6 @@ else:
         column_config={
             "date": st.column_config.TextColumn("Date", disabled=True),
             "description": st.column_config.TextColumn("Description", disabled=True),
-            "merchant": st.column_config.TextColumn("Merchant", required=True),
             "amount": st.column_config.NumberColumn("Amount", format="$%.2f", disabled=True),
             "main_category": st.column_config.SelectboxColumn(
                 "Main category", options=FINAL_MAIN_CATEGORY_OPTIONS, required=True

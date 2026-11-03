@@ -15,8 +15,6 @@ import streamlit as st
 
 from dashboard.bank_profiles import load_bank_profiles
 from dashboard.dashboard_data import sort_rows_by_date
-from dashboard.cleaning_logic import clean_description_for_matching
-
 import dashboard.final_export as final_export
 
 if not all(
@@ -102,8 +100,6 @@ DROPPED_REVIEW_COLUMNS = FINAL_EXPORT_COLUMNS + [
 ]
 EDITABLE_SOURCE_COLUMNS = ["_source_file", "_source_row", "_category_reviewed"]
 EDITABLE_COLUMNS = FINAL_EXPORT_COLUMNS + EDITABLE_SOURCE_COLUMNS
-EDIT_APPLY_ALL = "All matching"
-EDIT_APPLY_ONLY_THIS_ROW = "Only this row"
 
 
 def _shorten_cell(value: object, limit: int) -> str:
@@ -113,7 +109,7 @@ def _shorten_cell(value: object, limit: int) -> str:
 
 
 def _record_table_view(click_key: str) -> None:
-    """ButtonColumn callback: remember the clicked row's full details."""
+    """ButtonColumn callback: remember the clicked row's full description."""
     click = st.session_state.get(click_key)
     lookup = st.session_state.get("_table_view_full")
     if click is None or lookup is None:
@@ -124,18 +120,14 @@ def _record_table_view(click_key: str) -> None:
             "row": row,
             "date": lookup.iloc[row]["date"],
             "description": lookup.iloc[row]["description"],
-            "merchant": lookup.iloc[row]["merchant"],
         }
 
 
 def _show_full_description() -> None:
-    """Show the full description/merchant for the clicked table row."""
+    """Show the full description for the clicked table row."""
     _record_table_view("table_view_desc_click")
 
 
-def _show_full_merchant() -> None:
-    """Show the full description/merchant for the clicked table row."""
-    _record_table_view("table_view_merch_click")
 HEADER_SUGGESTIONS = {
     "date": ("date", "transaction date", "posting date", "effective date", "activity date"),
     "posted_date": ("posted date", "effective date", "date posted", "posting date"),
@@ -832,8 +824,97 @@ if (
     not st.session_state.standardized_transactions.empty
     or not st.session_state.dropped_transactions.empty
 ):
+    dropped_transactions = st.session_state.dropped_transactions
+    if not dropped_transactions.empty:
+        st.subheader("1. Restore excluded transactions")
+        with st.expander(
+            f"Review {len(dropped_transactions):,} excluded transactions", expanded=True
+        ):
+            st.caption("Review the reason each row was excluded. Select Restore and add selected rows back to the export.")
+            review_display = dropped_transactions[
+                [
+                    "restore",
+                    "removal_reason",
+                    *[
+                        column
+                        for column in DROPPED_REVIEW_COLUMNS
+                        if column not in {"restore", "removal_reason"}
+                    ],
+                ]
+            ]
+            review_editor = st.data_editor(
+                review_display,
+                key=f"dropped_editor_{st.session_state.dropped_editor_revision}",
+                num_rows="fixed",
+                width='stretch',
+                hide_index=True,
+                column_config={
+                    "date": st.column_config.TextColumn("Date (MM/DD/YYYY)"),
+                    "description": st.column_config.TextColumn("Description"),
+                    "amount": st.column_config.NumberColumn("Amount", format="$%.2f"),
+                    "removal_reason": st.column_config.TextColumn("Why it was removed", disabled=True),
+                    "status": st.column_config.TextColumn("Status", disabled=True),
+                    "source_file": st.column_config.TextColumn("Source file", disabled=True),
+                    "source_row": st.column_config.NumberColumn("Source row", disabled=True),
+                    "restore": st.column_config.CheckboxColumn("Restore", default=False),
+                },
+            )
+            if st.button("Add selected transactions back", type="primary"):
+                selected_indices = review_editor.index[review_editor["restore"].fillna(False).astype(bool)]
+                if len(selected_indices) == 0:
+                    st.info("Select at least one transaction to restore.")
+                else:
+                    selected_rows = review_editor.loc[selected_indices]
+                    restored, restore_error = restored_rows_to_standardized(
+                        selected_rows[FINAL_EXPORT_COLUMNS],
+                        statuses=selected_rows["status"],
+                        source_files=selected_rows["source_file"],
+                        source_rows=selected_rows["source_row"],
+                    )
+                    if restore_error:
+                        st.error(f"Cannot restore selected transactions yet: {restore_error}")
+                    else:
+                        st.session_state.standardized_transactions = pd.concat(
+                            [st.session_state.standardized_transactions, restored], ignore_index=True
+                        )
+                        st.session_state.editable_transactions = pd.concat(
+                            [
+                                st.session_state.editable_transactions,
+                                pd.concat(
+                                    [
+                                        selected_rows[FINAL_EXPORT_COLUMNS].reset_index(drop=True),
+                                        selected_rows[["source_file", "source_row"]]
+                                        .rename(columns={"source_file": "_source_file", "source_row": "_source_row"})
+                                        .reset_index(drop=True),
+                                        pd.DataFrame(
+                                            {
+                                                "_category_reviewed": selected_rows[
+                                                    "main_category"
+                                                ].notna().to_numpy()
+                                            }
+                                        ),
+                                    ],
+                                    axis=1,
+                                ),
+                            ],
+                            ignore_index=True,
+                        )
+                        st.session_state.dropped_transactions = review_editor.drop(
+                            index=selected_indices
+                        ).reset_index(drop=True)
+                        st.session_state.pop(
+                            f"dropped_editor_{st.session_state.dropped_editor_revision}", None
+                        )
+                        st.session_state.dropped_editor_revision += 1
+                        st.session_state.pop(
+                            f"export_editor_{st.session_state.export_editor_revision}", None
+                        )
+                        st.session_state.export_editor_revision += 1
+                        st.success(f"Restored {len(restored):,} transaction(s).")
+                        st.rerun()
+
     transactions = st.session_state.standardized_transactions
-    st.subheader("4. Review, edit and download")
+    st.subheader("2. Review, edit and download")
     st.info(
         "Before downloading, check dates, signs and amounts. Main and sub categories start BLANK "
         "on purpose - pick your own category pair for each transaction (that is our labeling step, "
@@ -852,10 +933,9 @@ if (
         CATEGORY_PAIR_TO_LABEL.get((str(main), str(sub)), "")
         for main, sub in zip(editable["main_category"], editable["sub_category"])
     ]
-    editor_data["_apply_to"] = EDIT_APPLY_ALL
     search_query = st.text_input(
         "Search transactions",
-        placeholder="Description, merchant, category, amount...",
+        placeholder="Description, category, amount...",
         key="transaction_search",
     ).strip()
     previous_search_query = st.session_state.get("_previous_transaction_search")
@@ -907,10 +987,8 @@ if (
         st.caption(
             "Editing in progress \u2014 nothing is saved until you press **Save changes**. "
             "Choose a category in the **Sub-category (Main :: Sub)** column; Main category "
-            "is derived from it automatically, so they can never disagree. By default "
-            "**Apply to** is **All matching**, so a category change updates every "
-            "transaction with the same description; set it to **Only this row** to make "
-            "the edit a one-time occurrence. Categories are never auto-assigned."
+            "is derived from it automatically, so they can never disagree. "
+            "Categories are never auto-assigned."
         )
 
     if edit_mode:
@@ -925,7 +1003,6 @@ if (
                 "row_number": st.column_config.NumberColumn("Row", disabled=True, width=56),
                 "date": st.column_config.TextColumn("Date (MM/DD/YYYY)", width=100, required=True),
                 "description": st.column_config.TextColumn("Description", width=180, required=True),
-                "merchant": st.column_config.TextColumn("Merchant", width=160, required=True),
                 "type": st.column_config.SelectboxColumn(
                     "Type", options=["debit", "credit"], width=60, required=True
                 ),
@@ -939,17 +1016,6 @@ if (
                 ),
                 "bank": st.column_config.SelectboxColumn("Bank", options=bank_options, width=80, required=True),
                 "account": st.column_config.SelectboxColumn("Account", options=account_options, width=80, required=True),
-                "_apply_to": st.column_config.SelectboxColumn(
-                    "Apply to",
-                    options=[EDIT_APPLY_ALL, EDIT_APPLY_ONLY_THIS_ROW],
-                    default=EDIT_APPLY_ALL,
-                    width=110,
-                    help=(
-                        "\"All matching\" applies a category change to every transaction with the "
-                        "same description. \"Only this row\" makes it a one-time edit that changes "
-                        "just this transaction."
-                    ),
-                ),
                 "_category_reviewed": None,
                 "_source_file": None,
                 "_source_row": None,
@@ -968,19 +1034,12 @@ if (
             # errors flash during editing and the screen does not re-sort/reload.
             edited_transactions = editable[FINAL_EXPORT_COLUMNS].copy()
             edited_source_metadata = editable[EDITABLE_SOURCE_COLUMNS].copy().reset_index(drop=True)
-            editor_row_numbers = editor_data["row_number"].reset_index(drop=True)
             pair_mismatch = pd.Series(False, index=edited_transactions.index)
         else:
             # Save pressed: commit the editor contents to the session.
-            original_editor_data = editor_data.set_index("row_number")
-            editor_row_numbers = edited_editor_data["row_number"].reset_index(drop=True)
             edited_source_metadata = edited_editor_data[EDITABLE_SOURCE_COLUMNS].reset_index(drop=True)
-            apply_flags = (
-                edited_editor_data["_apply_to"].fillna(EDIT_APPLY_ALL).astype(str)
-                == EDIT_APPLY_ONLY_THIS_ROW
-            )
             edited_transactions = edited_editor_data.drop(
-                columns=["row_number", "_apply_to", *EDITABLE_SOURCE_COLUMNS]
+                columns=["row_number", *EDITABLE_SOURCE_COLUMNS]
             ).copy()
 # The composite "Main :: Sub" column is the single category input, so
             # Main category is always derived from it and can never disagree with
@@ -1005,45 +1064,9 @@ if (
             transfers_moved = bool(transfer_mask.any())
             edited_transactions.loc[transfer_mask, "sub_category"] = CATEGORY_PAIR_TO_LABEL[("Transfer", "N/A")]
 
-            # Propagate a category pair to every row that shares the same description
-            # so bulk category edits stay consistent within the session. Rows set to
-            # "Only this row" are one-time edits and are excluded both as sources and
-            # as targets of that propagation.
-            for row_position, row in edited_transactions.iterrows():
-                if row["main_category"] == "Transfer":
-                    continue
-                if apply_flags.iloc[row_position]:
-                    continue
-                editor_row_number = editor_row_numbers.iloc[row_position]
-                if pd.isna(editor_row_number) or editor_row_number not in original_editor_data.index:
-                    continue
-                original_row = original_editor_data.loc[editor_row_number]
-                old_pair = CATEGORY_LABEL_TO_PAIR.get(str(original_row["sub_category"]))
-                new_pair = (str(row["main_category"]), str(row["sub_category"]))
-                was_reviewed = original_row["_category_reviewed"]
-                is_reviewed = edited_source_metadata.at[row_position, "_category_reviewed"]
-                was_reviewed = False if pd.isna(was_reviewed) else bool(was_reviewed)
-                is_reviewed = False if pd.isna(is_reviewed) else bool(is_reviewed)
-                if not is_reviewed or (old_pair == new_pair and was_reviewed):
-                    continue
-                description = str(row["description"])
-                normalized_description = clean_description_for_matching(description)
-                if not normalized_description:
-                    continue
-                # Category choices update this session's transactions only; the master
-                # category mapping is read-only and is never modified from the app.
-                matching_rows = edited_transactions["description"].map(
-                    lambda value: clean_description_for_matching(str(value))
-                ).eq(normalized_description)
-                matching_rows = matching_rows & ~apply_flags
-                edited_transactions.loc[matching_rows, "main_category"] = new_pair[0]
-                edited_transactions.loc[matching_rows, "sub_category"] = new_pair[1]
-                edited_source_metadata.loc[matching_rows, "_category_reviewed"] = True
-                pair_mismatch.loc[matching_rows] = False
-
             edited_transactions = edited_transactions[FINAL_EXPORT_COLUMNS]
-            # No merchant/category caches are written anymore: labels live only in
-            # the session's editable transactions (download the CSV to keep them).
+            # Category labels live only in the session's editable transactions
+            # (download the CSV to keep them).
             edited_transactions = edited_transactions.reset_index(drop=True)
             if transfers_moved:
                 transfer_rows = make_transfer_review_rows(
@@ -1060,7 +1083,6 @@ if (
                 st.session_state.dropped_editor_revision += 1
                 edited_transactions = edited_transactions.loc[~transfer_mask].reset_index(drop=True)
                 edited_source_metadata = edited_source_metadata.loc[~transfer_mask].reset_index(drop=True)
-                editor_row_numbers = editor_row_numbers.loc[~transfer_mask].reset_index(drop=True)
                 pair_mismatch = pair_mismatch.loc[~transfer_mask].reset_index(drop=True)
                 st.info(f"Moved {int(transfer_mask.sum())} manually marked transfer(s) to the excluded transaction review list.")
 
@@ -1069,7 +1091,6 @@ if (
             if date_order_changed:
                 edited_transactions = edited_transactions.loc[date_order].reset_index(drop=True)
                 edited_source_metadata = edited_source_metadata.loc[date_order].reset_index(drop=True)
-                editor_row_numbers = editor_row_numbers.loc[date_order].reset_index(drop=True)
                 pair_mismatch = pair_mismatch.loc[date_order].reset_index(drop=True)
 
             st.session_state.editable_transactions = pd.concat(
@@ -1086,18 +1107,17 @@ if (
                 st.rerun()
     else:
         # Read-only table: compact columns so the whole table fits without
-        # side-scrolling. Description and Merchant are clickable buttons so the
-        # full text is available on demand.
+        # side-scrolling. Description is clickable so the full text is available
+        # on demand.
         view_frame = visible_editor_data.copy()
         view_frame = view_frame.drop(
-            columns=["main_category", "_category_reviewed", "_source_file", "_source_row", "_apply_to"]
+            columns=["main_category", "_category_reviewed", "_source_file", "_source_row"]
         )
         full_lookup = editor_data.loc[
-            view_frame.index, ["row_number", "date", "description", "merchant"]
+            view_frame.index, ["row_number", "date", "description"]
         ].reset_index(drop=True)
         st.session_state["_table_view_full"] = full_lookup
         view_frame["description"] = [_shorten_cell(value, 26) for value in view_frame["description"]]
-        view_frame["merchant"] = [_shorten_cell(value, 20) for value in view_frame["merchant"]]
         table_event = st.dataframe(
             view_frame,
             key=f"export_view_table_{st.session_state.view_table_revision}",
@@ -1115,14 +1135,6 @@ if (
                     width=180,
                     on_click=_show_full_description,
                     key="table_view_desc_click",
-                ),
-                "merchant": st.column_config.ButtonColumn(
-                    "Merchant",
-                    type="tertiary",
-                    alignment="left",
-                    width=160,
-                    on_click=_show_full_merchant,
-                    key="table_view_merch_click",
                 ),
                 "type": st.column_config.TextColumn("Type", width=60),
                 "amount": st.column_config.NumberColumn("Amount", format="$%.2f", width=80),
@@ -1143,14 +1155,12 @@ if (
                     f"Date: {viewed.get('date', '')}"
                 )
                 st.markdown(f"**Full description:** {viewed.get('description', '')}")
-                st.markdown(f"**Full merchant:** {viewed.get('merchant', '')}")
                 if st.button("Close details"):
                     st.session_state.pop("_table_viewed", None)
                     st.rerun()
         # Downstream review/validation/download use the committed (saved) data.
         edited_transactions = editable[FINAL_EXPORT_COLUMNS].copy()
         edited_source_metadata = editable[EDITABLE_SOURCE_COLUMNS].copy().reset_index(drop=True)
-        editor_row_numbers = editor_data["row_number"].reset_index(drop=True)
         pair_mismatch = pd.Series(False, index=edited_transactions.index)
 
 
@@ -1164,7 +1174,7 @@ if (
         expanded=st.session_state.review_expanded,
     ):
         st.caption(
-            "Set the merchant and category for each transaction below. Categories start "
+            "Set the category for each transaction below. Categories start "
             "blank so you choose them explicitly — a selection is never pre-filled. "
             "Mappings are stored for this session only — they are not saved to disk and "
             "expire when you close the browser."
@@ -1210,23 +1220,13 @@ if (
                         "fallback category. We no longer use it - choose a real category "
                         "below before applying."
                     )
-                info_cols = st.columns([2, 2, 1, 1])
+                info_cols = st.columns([3, 1, 1])
                 with info_cols[0]:
                     st.markdown(f"**Description**  \n{row['description']}")
-                with info_cols[1]:
-                    st.markdown(
-                        f"**Merchant**  \n{row['merchant'] if pd.notna(row['merchant']) else ''}"
-                    )
                 with info_cols[2]:
                     st.markdown(f"**Date**  \n{row['date']}")
-                with info_cols[3]:
+                with info_cols[1]:
                     st.markdown(f"**Amount**  \n{row['amount']}")
-
-                merchant_input = st.text_input(
-                    "Merchant",
-                    value=row['merchant'] if pd.notna(row['merchant']) else "",
-                    key=f"flag_merchant_{current_idx}",
-                )
 
                 current_pair = CATEGORY_PAIR_TO_LABEL.get(
                     (str(row["main_category"]), str(row["sub_category"])),
@@ -1261,7 +1261,7 @@ if (
                 if sub_category == SUB_CATEGORY_PLACEHOLDER:
                     st.error("Choose a sub-category before applying.")
                     return
-                problem = edited_row_problem(merchant_input, main_category, sub_category)
+                problem = edited_row_problem(main_category, sub_category)
                 if problem:
                     st.error(f"Cannot apply: {problem}. Fix it first.")
                     return
@@ -1271,7 +1271,6 @@ if (
                     "N/A" if main_category == "Transfer"
                     else sub_category
                 )
-                updated.at[current_idx, "merchant"] = str(merchant_input).strip()
                 updated.at[current_idx, "main_category"] = main_category
                 updated.at[current_idx, "sub_category"] = resolved_sub
                 updated.at[current_idx, "_category_reviewed"] = True
@@ -1339,82 +1338,5 @@ if (
         type="primary",
         disabled=validation_error is not None,
     )
-    dropped_transactions = st.session_state.dropped_transactions
-    if not dropped_transactions.empty:
-        with st.expander(
-            f"Review {len(dropped_transactions):,} excluded transactions", expanded=False
-        ):
-            st.caption("Review the reason each row was excluded. Select Restore and add selected rows back to the export.")
-            review_editor = st.data_editor(
-                dropped_transactions,
-                key=f"dropped_editor_{st.session_state.dropped_editor_revision}",
-                num_rows="fixed",
-                width='stretch',
-                hide_index=True,
-                column_config={
-                    "date": st.column_config.TextColumn("Date (MM/DD/YYYY)"),
-                    "description": st.column_config.TextColumn("Description"),
-                    "merchant": st.column_config.TextColumn("Merchant"),
-                    "amount": st.column_config.NumberColumn("Amount", format="$%.2f"),
-                    "removal_reason": st.column_config.TextColumn("Why it was removed", disabled=True),
-                    "status": st.column_config.TextColumn("Status", disabled=True),
-                    "source_file": st.column_config.TextColumn("Source file", disabled=True),
-                    "source_row": st.column_config.NumberColumn("Source row", disabled=True),
-                    "restore": st.column_config.CheckboxColumn("Restore", default=False),
-                },
-            )
-            if st.button("Add selected transactions back", type="primary"):
-                selected_indices = review_editor.index[review_editor["restore"].fillna(False).astype(bool)]
-                if len(selected_indices) == 0:
-                    st.info("Select at least one transaction to restore.")
-                else:
-                    selected_rows = review_editor.loc[selected_indices]
-                    restored, restore_error = restored_rows_to_standardized(
-                        selected_rows[FINAL_EXPORT_COLUMNS],
-                        statuses=selected_rows["status"],
-                        source_files=selected_rows["source_file"],
-                        source_rows=selected_rows["source_row"],
-                    )
-                    if restore_error:
-                        st.error(f"Cannot restore selected transactions yet: {restore_error}")
-                    else:
-                        st.session_state.standardized_transactions = pd.concat(
-                            [st.session_state.standardized_transactions, restored], ignore_index=True
-                        )
-                        st.session_state.editable_transactions = pd.concat(
-                            [
-                                st.session_state.editable_transactions,
-                                pd.concat(
-                                    [
-                                        selected_rows[FINAL_EXPORT_COLUMNS].reset_index(drop=True),
-                                        selected_rows[["source_file", "source_row"]]
-                                        .rename(columns={"source_file": "_source_file", "source_row": "_source_row"})
-                                        .reset_index(drop=True),
-                                        pd.DataFrame(
-                                            {
-                                                "_category_reviewed": selected_rows[
-                                                    "main_category"
-                                                ].notna().to_numpy()
-                                            }
-                                        ),
-                                    ],
-                                    axis=1,
-                                ),
-                            ],
-                            ignore_index=True,
-                        )
-                        st.session_state.dropped_transactions = review_editor.drop(
-                            index=selected_indices
-                        ).reset_index(drop=True)
-                        st.session_state.pop(
-                            f"dropped_editor_{st.session_state.dropped_editor_revision}", None
-                        )
-                        st.session_state.dropped_editor_revision += 1
-                        st.session_state.pop(
-                            f"export_editor_{st.session_state.export_editor_revision}", None
-                        )
-                        st.session_state.export_editor_revision += 1
-                        st.success(f"Restored {len(restored):,} transaction(s).")
-                        st.rerun()
 else:
     st.info("Add a statement above to see standardized transactions here.")

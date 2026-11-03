@@ -10,8 +10,7 @@ The rule-based categorization system is gone:
 
 `main_category` / `sub_category` start BLANK on purpose. Users pick their own
 category pairs in the Streamlit UI (that labeling step is what creates the
-training data for `ml_models.py`), and `merchant` is just the cleaned
-description unless a user edits it.
+training data for `ml_models.py`).
 
 What remains: the export schema, the category *vocabulary* used for the UI
 dropdowns (never auto-assigned), the transfer/declined/noise exclusions, the
@@ -33,7 +32,6 @@ from dashboard.transaction_import import STANDARD_COLUMNS
 FINAL_EXPORT_COLUMNS = [
     "date",
     "description",
-    "merchant",
     "type",
     "amount",
     "main_category",
@@ -283,18 +281,8 @@ def previous_export_to_standardized(
     ]]
 
 
-def edited_row_problem(
-    merchant: object,
-    main_category: object,
-    sub_category: object,
-) -> str | None:
-    """Return a short problem label for an edited review-table row, or None if valid.
-
-    The merchant must be non-blank, and the sub-category must belong to the
-    selected main category (Transfer uses N/A).
-    """
-    if pd.isna(merchant) or not str(merchant).strip():
-        return "missing merchant"
+def edited_row_problem(main_category: object, sub_category: object) -> str | None:
+    """Return a short problem label for an edited review-table row."""
     if main_category not in CATEGORY_SUBCATEGORIES or (
         main_category != "Transfer"
         and sub_category not in CATEGORY_SUBCATEGORIES[main_category]
@@ -334,7 +322,7 @@ def get_final_export_row_issues(transactions: pd.DataFrame) -> dict[int, list[st
         if pd.isna(amount):
             issues.append("Amount must be a valid number.")
 
-        for column in ("description", "merchant", "type", "bank", "account"):
+        for column in ("description", "type", "bank", "account"):
             if blank(row[column]):
                 issues.append(f"{column.replace('_', ' ').title()} is required.")
 
@@ -515,8 +503,7 @@ def format_final_export(
 
     No rules, caches, or defaults are applied: ``main_category`` and
     ``sub_category`` start blank for the user (or the ML models in
-    ``ml_models.py``) to fill in, and ``merchant`` is just the cleaned
-    description unless a user edits it.
+    ``ml_models.py``) to fill in.
     """
     required_columns = {"date", "description", "amount", "transaction_type", "bank", "account"}
     missing_columns = required_columns - set(transactions.columns)
@@ -527,16 +514,6 @@ def format_final_export(
         result, _ = split_filtered_transactions(transactions)
     else:
         result = transactions.copy()
-    if "merchant" not in result:
-        result["merchant"] = result["description"].map(
-            lambda description: smart_title(str(description))
-        )
-    else:
-        missing_merchants = result["merchant"].isna() | result["merchant"].astype("string").str.strip().eq("")
-        result.loc[missing_merchants, "merchant"] = result.loc[
-            missing_merchants, "description"
-        ].map(lambda description: smart_title(str(description)))
-
     result["type"] = result["transaction_type"]
     result["bank"] = result["bank"].map(normalize_bank_name)
     result["account"] = result["account"].map(normalize_account_type)

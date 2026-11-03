@@ -35,6 +35,12 @@ also lives in `report.md` (§ 7).
 | 2026-11-02 | Improved the review toolbar visibility and made selecting a row in the read-only transaction table enter edit mode. | `app.py` | Savanna & Jillian |
 | 2026-11-02 | Changed the read-only table trigger to single-cell selection so clicking directly into any cell opens the editable table with category dropdown options. | `app.py` | Savanna & Jillian |
 | 2026-11-02 | Fixed the sidebar bank count to combine normalized bank labels from imported and editable data, and refresh immediately after adding a statement. | `app.py` | Savanna & Jillian |
+| 2026-11-02 | Moved the excluded-transaction restore panel to the beginning of the review workflow for easier access. | `app.py` | Savanna & Jillian |
+| 2026-11-02 | Moved the Restore checkbox column to the first position in the excluded-transaction review table. | `app.py` | Savanna & Jillian |
+| 2026-11-02 | Placed Why it was removed immediately after the Restore checkbox in the excluded-transaction review table. | `app.py` | Savanna & Jillian |
+| 2026-11-02 | Removed the unused merchant field from the export schema, review interfaces, analytics views, and category-edit workflow. | `app.py`, `dashboard/`, `pages/`, `tests/` | Savanna & Jillian |
+| 2026-11-02 | Fixed an empty Markdown call left by the merchant removal that prevented the add-category selector from rendering. | `app.py` | Savanna & Jillian |
+| 2026-11-02 | Removed the Apply to / All matching column and its bulk category propagation so edits apply only to the selected transaction row. | `app.py` | Savanna & Jillian |
 
 Notes on what the assistant saw/touched:
 

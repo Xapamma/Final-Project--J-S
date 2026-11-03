@@ -342,7 +342,7 @@ if category_allocations:
                         st.caption("No transactions for this subcategory in the selected month.")
                     else:
                         transaction_details = subcategory_transactions[
-                            ["date", "description", "merchant", "amount"]
+                            ["date", "description", "amount"]
                         ].copy()
                         transaction_details["date"] = transaction_details["date"].dt.strftime(
                             "%m/%d/%Y"

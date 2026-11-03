@@ -61,7 +61,7 @@ if "overview_recent_editor_revision" not in st.session_state:
     st.session_state.overview_recent_editor_revision = 0
 recent_editor_data = category_editor_data(
     recent,
-    ["date", "merchant", "amount", "main_category", "sub_category"],
+    ["date", "description", "amount", "main_category", "sub_category"],
 )
 edited_recent = st.data_editor(
     recent_editor_data,
@@ -71,7 +71,7 @@ edited_recent = st.data_editor(
     hide_index=True,
     column_config={
         "date": st.column_config.TextColumn("Date", disabled=True),
-        "merchant": st.column_config.TextColumn("Merchant", disabled=True),
+        "description": st.column_config.TextColumn("Description", disabled=True),
         "amount": st.column_config.NumberColumn("Amount", format="$%.2f", disabled=True),
         "main_category": st.column_config.SelectboxColumn(
             "Main category", options=FINAL_MAIN_CATEGORY_OPTIONS, required=True

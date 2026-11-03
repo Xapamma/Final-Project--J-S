@@ -214,13 +214,11 @@ class DecategorizedExportTests(unittest.TestCase):
         # Dates are formatted and sorted oldest first.
         self.assertEqual(exported["date"].tolist(), ["01/03/2026", "01/05/2026"])
 
-    def test_categories_start_blank_and_merchant_is_plain_description(self):
+    def test_categories_start_blank(self):
         exported = format_final_export(self.make_transactions())
         self.assertTrue(exported["main_category"].isna().all())
         self.assertTrue(exported["sub_category"].isna().all())
-        # No merchant lookup rules: merchant is just the title-cased description.
-        # (Rows are date-sorted oldest first: Payroll on 01/03 precedes coffee.)
-        self.assertEqual(exported["merchant"].tolist(), ["Payroll", "Wakanda Coffee"])
+        self.assertNotIn("merchant", exported.columns)
 
     def test_rule_based_categorization_is_gone(self):
         # No General Spending fallback in the vocabulary, and no rule
@@ -241,7 +239,7 @@ class DecategorizedExportTests(unittest.TestCase):
 
     def test_transfer_stays_a_manual_choice_with_na_subcategory(self):
         df = pd.DataFrame(
-            [["06/01/2026", "Transfer to savings", "Checking", "debit", 50.0, "Transfer", None, "sofi", "checking"]],
+            [["06/01/2026", "Transfer to savings", "debit", 50.0, "Transfer", None, "sofi", "checking"]],
             columns=FINAL_EXPORT_COLUMNS,
         )
         completed = complete_missing_categories(df)
@@ -251,7 +249,7 @@ class DecategorizedExportTests(unittest.TestCase):
 class ValidationAndReviewTests(unittest.TestCase):
     def test_validate_accepts_complete_labeled_rows(self):
         rows = pd.DataFrame(
-            [["06/01/2026", "Coffee", "Coffee Shop", "debit", -4.5, "Food & Dining", "Restaurants/Dining", "sofi", "savings"]],
+            [["06/01/2026", "Coffee", "debit", -4.5, "Food & Dining", "Restaurants/Dining", "sofi", "savings"]],
             columns=FINAL_EXPORT_COLUMNS,
         )
         result, error = validate_final_export_rows(rows)
@@ -260,7 +258,7 @@ class ValidationAndReviewTests(unittest.TestCase):
 
     def test_validate_accepts_blank_categories(self):
         rows = pd.DataFrame(
-            [["06/01/2026", "Coffee", "Coffee Shop", "debit", -4.5, None, None, "sofi", "savings"]],
+            [["06/01/2026", "Coffee", "debit", -4.5, None, None, "sofi", "savings"]],
             columns=FINAL_EXPORT_COLUMNS,
         )
         result, error = validate_final_export_rows(rows)
@@ -270,8 +268,8 @@ class ValidationAndReviewTests(unittest.TestCase):
     def test_previous_export_preserves_categories_and_review_state(self):
         rows = pd.DataFrame(
             [
-                ["06/01/2026", "Coffee", "Coffee Shop", "debit", -4.5, "Food & Dining", "Restaurants/Dining", "sofi", "savings"],
-                ["06/02/2026", "Payroll", "Payroll", "credit", 1200.0, "", "", "sofi", "savings"],
+                ["06/01/2026", "Coffee", "debit", -4.5, "Food & Dining", "Restaurants/Dining", "sofi", "savings"],
+                ["06/02/2026", "Payroll", "credit", 1200.0, "", "", "sofi", "savings"],
             ],
             columns=FINAL_EXPORT_COLUMNS,
         )
@@ -288,7 +286,7 @@ class ValidationAndReviewTests(unittest.TestCase):
 
     def test_validate_rejects_partial_categories(self):
         rows = pd.DataFrame(
-            [["06/01/2026", "Coffee", "Coffee Shop", "debit", -4.5, "Food & Dining", None, "sofi", "savings"]],
+            [["06/01/2026", "Coffee", "debit", -4.5, "Food & Dining", None, "sofi", "savings"]],
             columns=FINAL_EXPORT_COLUMNS,
         )
         result, error = validate_final_export_rows(rows)
@@ -297,7 +295,7 @@ class ValidationAndReviewTests(unittest.TestCase):
 
     def test_validate_rejects_subcategory_outside_selected_main_category(self):
         rows = pd.DataFrame(
-            [["06/01/2026", "Coffee", "Coffee Shop", "debit", -4.5, "Food & Dining", "Airfare", "sofi", "savings"]],
+            [["06/01/2026", "Coffee", "debit", -4.5, "Food & Dining", "Airfare", "sofi", "savings"]],
             columns=FINAL_EXPORT_COLUMNS,
         )
         result, error = validate_final_export_rows(rows)
@@ -307,8 +305,8 @@ class ValidationAndReviewTests(unittest.TestCase):
     def test_row_issue_map_identifies_only_invalid_date_row(self):
         rows = pd.DataFrame(
             [
-                ["not-a-date", "Coffee", "Coffee Shop", "debit", -4.5, "Food & Dining", "Restaurants/Dining", "sofi", "savings"],
-                ["06/02/2026", "Gas", "Shell", "debit", -30.0, "Transportation", "Fuel", "sofi", "savings"],
+                ["not-a-date", "Coffee", "debit", -4.5, "Food & Dining", "Restaurants/Dining", "sofi", "savings"],
+                ["06/02/2026", "Gas", "debit", -30.0, "Transportation", "Fuel", "sofi", "savings"],
             ],
             columns=FINAL_EXPORT_COLUMNS,
         )
@@ -316,23 +314,21 @@ class ValidationAndReviewTests(unittest.TestCase):
         self.assertEqual(list(issues), [0])
         self.assertIn("Date must use MM/DD/YYYY.", issues[0])
 
-    def test_edited_row_problem_flags_blank_merchant_and_mismatched_category(self):
-        self.assertEqual(edited_row_problem("", "Food & Dining", "Groceries"), "missing merchant")
+    def test_edited_row_problem_flags_mismatched_category(self):
         self.assertEqual(
-            edited_row_problem("Shop", "Food & Dining", "Airfare"),
+            edited_row_problem("Food & Dining", "Airfare"),
             "sub-category does not match its main category",
         )
-        self.assertIsNone(edited_row_problem("Shop", "Food & Dining", "Groceries"))
-        self.assertIsNone(edited_row_problem("Shop", "Transfer", "N/A"))
+        self.assertIsNone(edited_row_problem("Food & Dining", "Groceries"))
+        self.assertIsNone(edited_row_problem("Transfer", "N/A"))
 
     def test_format_edit_problem_counts_groups_into_one_sentence(self):
-        sentence = format_edit_problem_counts({"missing merchant": 2, "mismatched categories": 1})
-        self.assertIn("3 row(s)", sentence)
-        self.assertIn("2 missing merchant", sentence)
+        sentence = format_edit_problem_counts({"mismatched categories": 1})
+        self.assertIn("1 row(s)", sentence)
 
     def test_transfer_review_rows_build_excluded_review_row(self):
         rows = pd.DataFrame(
-            [["06/01/2026", "Transfer", "Bank", "debit", 50.0, "Transfer", "N/A", "sofi", "checking"]],
+            [["06/01/2026", "Transfer", "debit", 50.0, "Transfer", "N/A", "sofi", "checking"]],
             columns=FINAL_EXPORT_COLUMNS,
         )
         review = make_transfer_review_rows(
@@ -344,7 +340,7 @@ class ValidationAndReviewTests(unittest.TestCase):
 
     def test_restored_dropped_row_can_be_converted_back(self):
         dropped = pd.DataFrame(
-            [["06/01/2026", "Refund from shop", "Shop", "credit", 20.0, "Income", "Refunds", "sofi", "savings"]],
+            [["06/01/2026", "Refund from shop", "credit", 20.0, "Income", "Refunds", "sofi", "savings"]],
             columns=FINAL_EXPORT_COLUMNS,
         )
         restored, error = restored_rows_to_standardized(
@@ -380,9 +376,9 @@ class AnalyticsHelperTests(unittest.TestCase):
     def export_rows(self):
         return pd.DataFrame(
             [
-                ["06/01/2026", "Coffee", "Coffee Shop", "debit", -4.5, "Food & Dining", "Restaurants/Dining", "sofi", "savings"],
-                ["06/02/2026", "Payroll", "Payroll Deposit", "credit", 1000.0, "Income", "Paychecks", "sofi", "savings"],
-                ["06/03/2026", "More food", "Mcdonalds", "debit", -8.0, "Food & Dining", "Fast Food", "sofi", "savings"],
+                ["06/01/2026", "Coffee", "debit", -4.5, "Food & Dining", "Restaurants/Dining", "sofi", "savings"],
+                ["06/02/2026", "Payroll", "credit", 1000.0, "Income", "Paychecks", "sofi", "savings"],
+                ["06/03/2026", "More food", "debit", -8.0, "Food & Dining", "Fast Food", "sofi", "savings"],
             ],
             columns=FINAL_EXPORT_COLUMNS,
         )

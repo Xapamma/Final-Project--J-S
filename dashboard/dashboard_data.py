@@ -19,7 +19,6 @@ CATEGORY_EDIT_API_VERSION = 4
 ANALYTICS_COLUMNS = [
     "date",
     "description",
-    "merchant",
     "amount",
     "main_category",
     "sub_category",
@@ -50,7 +49,6 @@ def prepare_analytics_transactions(export_rows: pd.DataFrame | None) -> pd.DataF
     transactions = transactions.dropna(subset=["date", "amount"])
     transactions["main_category"] = transactions["main_category"].fillna("Uncategorized")
     transactions["sub_category"] = transactions["sub_category"].fillna("Other")
-    transactions["merchant"] = transactions["merchant"].fillna("Unknown merchant")
     return transactions.reset_index(drop=True)
 
 
@@ -72,10 +70,9 @@ def apply_transaction_category_edits(
     export_rows: pd.DataFrame,
     edited_rows: pd.DataFrame,
 ) -> tuple[pd.DataFrame, bool, bool]:
-    """Apply category and optional merchant edits by source position.
+    """Apply category edits by source position.
 
-    Changes update the session's editable transactions only; no master
-    merchant/category mapping exists anymore.
+    Changes update the session's editable transactions only.
     """
     pairs = edited_rows["sub_category"].map(CATEGORY_LABEL_TO_PAIR)
     positions = pd.to_numeric(edited_rows["_source_position"], errors="coerce")
@@ -113,14 +110,7 @@ def apply_transaction_category_edits(
             str(current_main) != str(main_category)
             or str(current_subcategory) != subcategory
         )
-        current_merchant = str(updated.at[position, "merchant"])
-        edited_merchant = (
-            str(edited_rows.at[row_index, "merchant"]).strip()
-            if "merchant" in edited_rows.columns
-            else current_merchant
-        )
-        merchant_changed = bool(edited_merchant) and current_merchant != edited_merchant
-        if not category_changed and not merchant_changed:
+        if not category_changed:
             continue
 
         description = str(updated.at[position, "description"])
@@ -137,8 +127,6 @@ def apply_transaction_category_edits(
             updated.loc[matching_rows, "sub_category"] = subcategory
             if "_category_reviewed" in updated.columns:
                 updated.loc[matching_rows, "_category_reviewed"] = True
-        if merchant_changed:
-            updated.loc[matching_rows, "merchant"] = edited_merchant
         changed = True
     return updated, changed, False
 
