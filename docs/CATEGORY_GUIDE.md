@@ -58,7 +58,9 @@ this list (the same list powers the dropdowns in the Streamlit app):
 * Bank `APY/dividend` deposits → `Income / CC Rewards` or
   `Savings & Investments / Dividends` (use the bank's own category as a hint).
 * Card payments (e.g. "Payment Thank You") → usually internal transfers
-  (`Transfer`), are auto-excluded for review, and can be restored if wrong.
+  (`Transfer`). The app does not infer this from the description; choose
+  `Transfer` manually when appropriate. The row then moves to the manual review
+  queue, where it can be restored if needed. Payment text alone never queues it.
 * `.robinhood` deposits or brokerage names → `Savings & Investments / Investments`.
 
 *(Add merchant-specific decisions here as we label.)*

@@ -161,17 +161,16 @@ class ExclusionAndDuplicateTests(unittest.TestCase):
         ]
         return pd.DataFrame(rows, columns=columns)
 
-    def test_final_export_excludes_legacy_noise_descriptions(self):
+    def test_payment_and_transfer_descriptions_remain_editable(self):
         source = self.make_standardized(
             [
                 [None, "2026-01-05", None, "Transfer to SoFi Checking", -50.0, "debit", None, None, "sofi", "savings", None, "s.csv", 1],
-                [None, "2026-01-06", None, "Costco", -75.0, "debit", None, None, "sofi", "savings", None, "s.csv", 2],
+                [None, "2026-01-06", None, "Payment Thank You", -75.0, "debit", "Payment", None, "sofi", "savings", None, "s.csv", 2],
             ]
         )
         exportable, filtered = split_filtered_transactions(source)
-        self.assertEqual(len(exportable), 1)
-        self.assertEqual(len(filtered), 1)
-        self.assertIn("transfer", filtered.iloc[0]["removal_reason"].casefold())
+        self.assertEqual(len(exportable), 2)
+        self.assertTrue(filtered.empty)
 
     def test_exact_duplicate_transactions_are_excluded_for_review(self):
         source = self.make_standardized(
@@ -185,7 +184,7 @@ class ExclusionAndDuplicateTests(unittest.TestCase):
         self.assertEqual(len(duplicates), 1)
         self.assertIn("Duplicate", duplicates.iloc[0]["removal_reason"])
 
-    def test_declined_status_rows_are_excluded(self):
+    def test_declined_status_rows_are_excluded_for_review(self):
         source = self.make_standardized(
             [
                 [None, "2026-01-05", None, "Declined purchase", -75.0, "debit", None, "Declined", "sofi", "savings", None, "s.csv", 1],

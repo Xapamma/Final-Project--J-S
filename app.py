@@ -228,6 +228,129 @@ def make_dropped_review_rows(
     return review[DROPPED_REVIEW_COLUMNS]
 
 
+def render_manual_review_queue() -> None:
+    dropped_transactions = st.session_state.dropped_transactions
+    if dropped_transactions.empty:
+        return
+
+    st.subheader("1. Manual transaction review queue")
+    with st.expander(
+        f"Review {len(dropped_transactions):,} manually queued transactions",
+        expanded=True,
+    ):
+        st.caption(
+            "Transactions are added here when they are declined, duplicated, or "
+            "manually marked as Transfer. Restore any row to return it to the "
+            "editable transaction list."
+        )
+        if st.button(
+            "Select all transactions for restore",
+            key=f"select_all_dropped_{st.session_state.dropped_editor_revision}",
+        ):
+            selected_for_restore = dropped_transactions.copy()
+            selected_for_restore["restore"] = True
+            st.session_state.dropped_transactions = selected_for_restore
+            st.session_state.pop(
+                f"dropped_editor_{st.session_state.dropped_editor_revision}", None
+            )
+            st.session_state.dropped_editor_revision += 1
+            st.rerun()
+
+        review_display = dropped_transactions[
+            [
+                "restore",
+                "removal_reason",
+                *[
+                    column
+                    for column in DROPPED_REVIEW_COLUMNS
+                    if column not in {"restore", "removal_reason"}
+                ],
+            ]
+        ]
+        review_editor = st.data_editor(
+            review_display,
+            key=f"dropped_editor_{st.session_state.dropped_editor_revision}",
+            num_rows="fixed",
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "date": st.column_config.TextColumn("Date (MM/DD/YYYY)"),
+                "description": st.column_config.TextColumn("Description"),
+                "amount": st.column_config.NumberColumn("Amount", format="$%.2f"),
+                "removal_reason": st.column_config.TextColumn(
+                    "Why it was queued", disabled=True
+                ),
+                "status": st.column_config.TextColumn("Status", disabled=True),
+                "source_file": st.column_config.TextColumn("Source file", disabled=True),
+                "source_row": st.column_config.NumberColumn("Source row", disabled=True),
+                "restore": st.column_config.CheckboxColumn("Restore", default=False),
+            },
+        )
+        if st.button("Restore selected transactions", type="primary"):
+            selected_indices = review_editor.index[
+                review_editor["restore"].fillna(False).astype(bool)
+            ]
+            if len(selected_indices) == 0:
+                st.info("Select at least one transaction to restore.")
+                return
+
+            selected_rows = review_editor.loc[selected_indices]
+            restored, restore_error = restored_rows_to_standardized(
+                selected_rows[FINAL_EXPORT_COLUMNS],
+                statuses=selected_rows["status"],
+                source_files=selected_rows["source_file"],
+                source_rows=selected_rows["source_row"],
+            )
+            if restore_error:
+                st.error(f"Cannot restore selected transactions yet: {restore_error}")
+                return
+
+            st.session_state.standardized_transactions = pd.concat(
+                [st.session_state.standardized_transactions, restored],
+                ignore_index=True,
+            )
+            st.session_state.editable_transactions = pd.concat(
+                [
+                    st.session_state.editable_transactions,
+                    pd.concat(
+                        [
+                            selected_rows[FINAL_EXPORT_COLUMNS].reset_index(drop=True),
+                            selected_rows[["source_file", "source_row"]]
+                            .rename(
+                                columns={
+                                    "source_file": "_source_file",
+                                    "source_row": "_source_row",
+                                }
+                            )
+                            .reset_index(drop=True),
+                            pd.DataFrame(
+                                {
+                                    "_category_reviewed": selected_rows[
+                                        "main_category"
+                                    ].notna().to_numpy()
+                                }
+                            ),
+                        ],
+                        axis=1,
+                    ),
+                ],
+                ignore_index=True,
+            )
+            st.session_state.dropped_transactions = review_editor.drop(
+                index=selected_indices
+            ).reset_index(drop=True)
+            st.session_state.pop(
+                f"dropped_editor_{st.session_state.dropped_editor_revision}", None
+            )
+            st.session_state.dropped_editor_revision += 1
+            st.session_state.pop(
+                f"export_editor_{st.session_state.export_editor_revision}", None
+            )
+            st.session_state.export_editor_revision += 1
+            st.success(f"Restored {len(restored):,} transaction(s).")
+            st.rerun()
+
+
 st.title("Bank Statement Import")
 st.caption("Turn bank CSV exports into one consistent transaction table.")
 try:
@@ -709,8 +832,7 @@ if uploaded_files:
                     standardized,
                     "_declined_transactions",
                     pd.DataFrame(columns=STANDARD_COLUMNS),
-                )
-                declined = declined.copy()
+                ).copy()
                 if not declined.empty:
                     declined["source_file"] = selected_file.name
                 exportable, filtered = split_filtered_transactions(standardized)
@@ -755,7 +877,6 @@ if uploaded_files:
                             ["Bank status is Declined."] * len(declined),
                         )
                     )
-                declined_rows = standardized.attrs.get("declined_rows_dropped", 0)
                 new_review = (
                     pd.concat(review_parts, ignore_index=True)
                     if review_parts
@@ -787,9 +908,10 @@ if uploaded_files:
                 st.session_state.file_import_signatures[selected_file.name] = current_signature
                 st.session_state.pop(f"export_editor_{st.session_state.export_editor_revision}", None)
                 st.session_state.export_editor_revision += 1
+                declined_rows = standardized.attrs.get("declined_rows_dropped", 0)
                 excluded_count = declined_rows + len(filtered)
                 declined_message = (
-                    f" Excluded {excluded_count:,} declined, transfer, or payment transaction(s)."
+                    f" Excluded {excluded_count:,} declined or duplicate transaction(s)."
                     if excluded_count
                     else ""
                 )
@@ -824,95 +946,7 @@ if (
     not st.session_state.standardized_transactions.empty
     or not st.session_state.dropped_transactions.empty
 ):
-    dropped_transactions = st.session_state.dropped_transactions
-    if not dropped_transactions.empty:
-        st.subheader("1. Restore excluded transactions")
-        with st.expander(
-            f"Review {len(dropped_transactions):,} excluded transactions", expanded=True
-        ):
-            st.caption("Review the reason each row was excluded. Select Restore and add selected rows back to the export.")
-            review_display = dropped_transactions[
-                [
-                    "restore",
-                    "removal_reason",
-                    *[
-                        column
-                        for column in DROPPED_REVIEW_COLUMNS
-                        if column not in {"restore", "removal_reason"}
-                    ],
-                ]
-            ]
-            review_editor = st.data_editor(
-                review_display,
-                key=f"dropped_editor_{st.session_state.dropped_editor_revision}",
-                num_rows="fixed",
-                width='stretch',
-                hide_index=True,
-                column_config={
-                    "date": st.column_config.TextColumn("Date (MM/DD/YYYY)"),
-                    "description": st.column_config.TextColumn("Description"),
-                    "amount": st.column_config.NumberColumn("Amount", format="$%.2f"),
-                    "removal_reason": st.column_config.TextColumn("Why it was removed", disabled=True),
-                    "status": st.column_config.TextColumn("Status", disabled=True),
-                    "source_file": st.column_config.TextColumn("Source file", disabled=True),
-                    "source_row": st.column_config.NumberColumn("Source row", disabled=True),
-                    "restore": st.column_config.CheckboxColumn("Restore", default=False),
-                },
-            )
-            if st.button("Add selected transactions back", type="primary"):
-                selected_indices = review_editor.index[review_editor["restore"].fillna(False).astype(bool)]
-                if len(selected_indices) == 0:
-                    st.info("Select at least one transaction to restore.")
-                else:
-                    selected_rows = review_editor.loc[selected_indices]
-                    restored, restore_error = restored_rows_to_standardized(
-                        selected_rows[FINAL_EXPORT_COLUMNS],
-                        statuses=selected_rows["status"],
-                        source_files=selected_rows["source_file"],
-                        source_rows=selected_rows["source_row"],
-                    )
-                    if restore_error:
-                        st.error(f"Cannot restore selected transactions yet: {restore_error}")
-                    else:
-                        st.session_state.standardized_transactions = pd.concat(
-                            [st.session_state.standardized_transactions, restored], ignore_index=True
-                        )
-                        st.session_state.editable_transactions = pd.concat(
-                            [
-                                st.session_state.editable_transactions,
-                                pd.concat(
-                                    [
-                                        selected_rows[FINAL_EXPORT_COLUMNS].reset_index(drop=True),
-                                        selected_rows[["source_file", "source_row"]]
-                                        .rename(columns={"source_file": "_source_file", "source_row": "_source_row"})
-                                        .reset_index(drop=True),
-                                        pd.DataFrame(
-                                            {
-                                                "_category_reviewed": selected_rows[
-                                                    "main_category"
-                                                ].notna().to_numpy()
-                                            }
-                                        ),
-                                    ],
-                                    axis=1,
-                                ),
-                            ],
-                            ignore_index=True,
-                        )
-                        st.session_state.dropped_transactions = review_editor.drop(
-                            index=selected_indices
-                        ).reset_index(drop=True)
-                        st.session_state.pop(
-                            f"dropped_editor_{st.session_state.dropped_editor_revision}", None
-                        )
-                        st.session_state.dropped_editor_revision += 1
-                        st.session_state.pop(
-                            f"export_editor_{st.session_state.export_editor_revision}", None
-                        )
-                        st.session_state.export_editor_revision += 1
-                        st.success(f"Restored {len(restored):,} transaction(s).")
-                        st.rerun()
-
+    render_manual_review_queue()
     transactions = st.session_state.standardized_transactions
     st.subheader("2. Review, edit and download")
     st.info(
@@ -920,7 +954,7 @@ if (
         "on purpose - pick your own category pair for each transaction (that is our labeling step, "
         "and it becomes the training data for the ML models in ml_models.py). Type Transfer into the "
         "main category for rows that are internal transfers; the app fills N/A and moves them to the "
-        "excluded transaction review list."
+        "manual transaction review queue below."
     )
     st.caption("Transactions are shown oldest to newest. Editing a date reorders the table; type, account, bank and category are selection-only except for category choices.")
     editable = sort_rows_by_date(
@@ -1084,7 +1118,7 @@ if (
                 edited_transactions = edited_transactions.loc[~transfer_mask].reset_index(drop=True)
                 edited_source_metadata = edited_source_metadata.loc[~transfer_mask].reset_index(drop=True)
                 pair_mismatch = pair_mismatch.loc[~transfer_mask].reset_index(drop=True)
-                st.info(f"Moved {int(transfer_mask.sum())} manually marked transfer(s) to the excluded transaction review list.")
+                st.info(f"Moved {int(transfer_mask.sum())} manually marked transfer(s) to the manual transaction review queue.")
 
             date_order = sort_rows_by_date(edited_transactions).index
             date_order_changed = not date_order.equals(edited_transactions.index)

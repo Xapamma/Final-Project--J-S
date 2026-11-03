@@ -13,8 +13,8 @@ category pairs in the Streamlit UI (that labeling step is what creates the
 training data for `ml_models.py`).
 
 What remains: the export schema, the category *vocabulary* used for the UI
-dropdowns (never auto-assigned), the transfer/declined/noise exclusions, the
-duplicate detection, row validation, and the dropped-transaction review rows.
+dropdowns (never auto-assigned), duplicate detection, row validation, and the
+manual dropped-transaction review rows.
 """
 
 from __future__ import annotations
@@ -104,21 +104,6 @@ CATEGORY_PAIR_TO_LABEL = {
 }
 CATEGORY_LABEL_TO_PAIR = {label: pair for pair, label in CATEGORY_PAIR_TO_LABEL.items()}
 CATEGORY_PAIR_OPTIONS = sorted(CATEGORY_LABEL_TO_PAIR)
-
-# Internal-transfer noise kept out of the export on purpose (data cleaning,
-# not categorization). These rows appear in the excluded review panel where
-# they can be restored.
-EXCLUDED_DESCRIPTION_FRAGMENTS = (
-    "transfer to sofi",
-    "to checking",
-    "roundup",
-    "home banking transfer",
-    "pymt",
-    "payment to",
-    "internal transfer",
-)
-PAYMENT_LABEL_PATTERN = re.compile(r"\b(?:payments?|pymt|pmt)\b", re.IGNORECASE)
-
 
 def _normalize_label(value: str) -> str:
     return re.sub(r"[^a-z0-9]", "", value.casefold())
@@ -408,32 +393,18 @@ def make_transfer_review_rows(
 
 
 def get_exclusion_reason(transaction: pd.Series) -> str | None:
-    """Explain why a transaction is omitted from spending totals/export."""
+    """Return the automatic exclusion reason reserved for declined rows."""
     status_value = transaction.get("status", "")
     status = "" if pd.isna(status_value) else str(status_value)
     if re.search(r"\bdeclined\b", status, re.IGNORECASE):
         return "Bank status is Declined."
-
-    description_value = transaction.get("description", "")
-    description = "" if pd.isna(description_value) else str(description_value)
-    for fragment in EXCLUDED_DESCRIPTION_FRAGMENTS:
-        if fragment in description.casefold():
-            return f"Description matches the existing exclusion rule: {fragment}."
-
-    category_value = transaction.get("bank_category", "")
-    bank_category = "" if pd.isna(category_value) else str(category_value)
-    if PAYMENT_LABEL_PATTERN.search(bank_category):
-        return f"Bank category indicates a payment: {bank_category}."
-
-    if PAYMENT_LABEL_PATTERN.search(description):
-        return "Description contains a payment label, likely a card-payment transfer."
     return None
 
 
 def split_filtered_transactions(
     transactions: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Separate exportable rows from rows excluded by transaction rules."""
+    """Exclude declined rows; other exclusions are added manually by the UI."""
     reasons = transactions.apply(get_exclusion_reason, axis=1)
     excluded_mask = reasons.notna()
     included = transactions.loc[~excluded_mask].copy()
@@ -501,7 +472,8 @@ def format_final_export(
 ) -> pd.DataFrame:
     """Create the same nine-column categorized schema as the example CSV.
 
-    No rules, caches, or defaults are applied: ``main_category`` and
+    No automatic exclusions, rules, caches, or defaults are applied:
+    ``main_category`` and
     ``sub_category`` start blank for the user (or the ML models in
     ``ml_models.py``) to fill in.
     """
@@ -510,10 +482,7 @@ def format_final_export(
     if missing_columns:
         raise ValueError(f"Missing standardized transaction columns: {sorted(missing_columns)}.")
 
-    if apply_exclusions:
-        result, _ = split_filtered_transactions(transactions)
-    else:
-        result = transactions.copy()
+    result = transactions.copy()
     result["type"] = result["transaction_type"]
     result["bank"] = result["bank"].map(normalize_bank_name)
     result["account"] = result["account"].map(normalize_account_type)

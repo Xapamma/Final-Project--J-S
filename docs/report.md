@@ -38,9 +38,9 @@ banks), and label-style differences between us may matter as much as the model.
   common schema (`date, description, raw_description, type, amount,
   main_category, sub_category, bank, account`).
 * Cleaning: descriptions are normalized (lowercase, digits/symbols and bank
-  noise stripped); internal transfers/roundups and declined rows are excluded
-  as noise (recoverable in the app's review panel); duplicates and payment-like
-  rows are flagged for review.
+  noise stripped); declined rows and duplicates are queued for review, while
+  internal transfers, roundups, and payment-like rows remain editable for
+  manual labeling.
 * **Categorization was intentionally removed**: `main_category` /
   `sub_category` start blank and are assigned by us (the Streamlit app is the
   labeling tool) using the vocabulary in `CATEGORY_GUIDE.md`. No rules, caches,

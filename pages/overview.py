@@ -97,4 +97,4 @@ elif categories_changed:
         st.session_state.pop(f"export_editor_{export_revision}", None)
         st.session_state.export_editor_revision += 1
     st.rerun()
-st.caption("Overview reflects the current session's editable export rows. Excluded transfers and declined transactions are not included.")
+st.caption("Overview reflects the current session's editable export rows. Transactions manually queued as transfers are not included.")

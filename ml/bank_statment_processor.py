@@ -140,22 +140,10 @@ combined = combined.sort_values("date")
 combined["description"] = combined["description"].fillna("")
 combined["raw_description"] = combined["description"]
 
-# --- 1. Drop internal noise ------------------------------------------------
-# Transfers / roundups between our own accounts are neither spending nor
-# income, so they would only add noise to the dataset.
-noise_patterns = [
-    "transfer to sofi", "to checking", "angel funding", "roundup",
-    "home banking transfer", "pymt", "payment to", "north capital",
-    "internal transfer",
-]
-desc_lower = combined["description"].str.lower()
-mask = ~desc_lower.apply(lambda x: any(noise in x for noise in noise_patterns))
-combined = combined[mask].copy()
-
-# --- 2. Clean descriptions (display text + ML text feature) ----------------
+# --- 1. Clean descriptions (display text + ML text feature) ----------------
 combined["description"] = combined["description"].apply(clean_description).apply(smart_title)
 
-# --- 3. Categories are chosen by US (by hand or by ML) ---------------------
+# --- 2. Categories are chosen by US (by hand or by ML) ---------------------
 # No auto-categorization anymore. These columns start empty on purpose:
 #   * fill them in yourself (that is the labeling step -> ML training data)
 #   * or run the ML models in ml_models.py to fill them automatically
