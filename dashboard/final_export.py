@@ -262,13 +262,15 @@ def previous_export_to_standardized(
     standardized["transaction_type"] = validated["type"].reset_index(drop=True)
     standardized["bank_category"] = pd.NA
     standardized["status"] = pd.NA
-    standardized["bank"] = validated["bank"].reset_index(drop=True)
-    standardized["account"] = validated["account"].reset_index(drop=True)
+    standardized["bank"] = validated["bank"].map(normalize_bank_name).reset_index(drop=True)
+    standardized["account"] = validated["account"].map(normalize_account_type).reset_index(drop=True)
     standardized["currency"] = pd.NA
     standardized["source_file"] = source_file
     standardized["source_row"] = pd.Series(range(2, len(validated) + 2), dtype="int64")
 
     editable = validated.copy()
+    editable["bank"] = editable["bank"].map(normalize_bank_name)
+    editable["account"] = editable["account"].map(normalize_account_type)
     editable["_source_file"] = source_file
     editable["_source_row"] = standardized["source_row"].to_numpy()
     category_values = editable[["main_category", "sub_category"]].astype("string")

@@ -283,6 +283,8 @@ class ValidationAndReviewTests(unittest.TestCase):
         self.assertEqual(editable["main_category"].tolist(), ["Food & Dining", ""])
         self.assertEqual(editable["_category_reviewed"].tolist(), [True, False])
         self.assertEqual(editable["_source_row"].tolist(), [2, 3])
+        self.assertEqual(editable["bank"].tolist(), ["sofi", "sofi"])
+        self.assertEqual(editable["account"].tolist(), ["savings", "savings"])
 
     def test_validate_rejects_partial_categories(self):
         rows = pd.DataFrame(

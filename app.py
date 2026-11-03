@@ -31,7 +31,6 @@ from dashboard.final_export import (
     CATEGORY_PAIR_OPTIONS,
     CATEGORY_PAIR_TO_LABEL,
     FINAL_EXPORT_COLUMNS,
-    FINAL_MAIN_CATEGORY_OPTIONS,
     complete_missing_categories,
     edited_row_problem,
     format_edit_problem_counts,
@@ -273,6 +272,10 @@ if "export_editor_revision" not in st.session_state:
     st.session_state.export_editor_revision = 0
 if "review_expanded" not in st.session_state:
     st.session_state.review_expanded = False
+if "review_widget_revision" not in st.session_state:
+    st.session_state.review_widget_revision = 0
+if "view_table_revision" not in st.session_state:
+    st.session_state.view_table_revision = 0
 if "editable_transactions" not in st.session_state:
     current_transactions = st.session_state.standardized_transactions
     initial_export = (
@@ -318,13 +321,31 @@ with st.sidebar:
     st.header("Imported data")
     current_data = st.session_state.standardized_transactions
     st.metric("Imported rows", len(current_data))
-    if not current_data.empty:
-        st.metric("Banks", current_data["bank"].nunique())
+    bank_values = []
+    for frame, column in (
+        (current_data, "bank"),
+        (st.session_state.editable_transactions, "bank"),
+    ):
+        if column in frame.columns:
+            bank_values.extend(
+                frame[column]
+                .dropna()
+                .astype(str)
+                .loc[lambda values: values.str.strip().ne("")]
+                .map(normalize_bank_name)
+                .tolist()
+            )
+    st.metric("Banks", len(set(bank_values)))
     if st.button("Clear imported data", width='stretch'):
         st.session_state.standardized_transactions = pd.DataFrame(columns=STANDARD_COLUMNS)
         st.session_state.editable_transactions = pd.DataFrame(columns=EDITABLE_COLUMNS)
         st.session_state.dropped_transactions = pd.DataFrame(columns=DROPPED_REVIEW_COLUMNS)
         st.session_state.file_import_signatures = {}
+        st.session_state.review_expanded = False
+        st.session_state.flag_review_cursor = 0
+        st.session_state.review_queue_total = 0
+        st.session_state.review_widget_revision += 1
+        st.session_state.view_table_revision += 1
         st.session_state.pop(f"export_editor_{st.session_state.export_editor_revision}", None)
         st.session_state.pop(f"dropped_editor_{st.session_state.dropped_editor_revision}", None)
         st.session_state.export_editor_revision += 1
@@ -390,6 +411,12 @@ if previous_export_file is not None:
                 columns=DROPPED_REVIEW_COLUMNS
             )
             st.session_state.file_import_signatures = {}
+            st.session_state.editor_edit_mode = False
+            st.session_state.review_expanded = True
+            st.session_state.flag_review_cursor = 0
+            st.session_state.review_queue_total = 0
+            st.session_state.review_widget_revision += 1
+            st.session_state.view_table_revision += 1
             st.session_state.pop(
                 f"export_editor_{st.session_state.export_editor_revision}", None
             )
@@ -778,6 +805,7 @@ if uploaded_files:
                     f"Processed {len(standardized):,} transactions from {selected_file.name}."
                     f"{declined_message}"
                 )
+                st.rerun()
             except (ImportFormatError, OSError, ValueError) as error:
                 st.error(f"This statement could not be standardized: {error}")
                 if (
@@ -856,15 +884,25 @@ if (
     edit_mode = st.session_state.get("editor_edit_mode", False)
     save_clicked = False
 
-    toolbar_cols = st.columns([1, 2, 5])
-    with toolbar_cols[0]:
-        if edit_mode:
-            if st.button("Save changes", type="primary"):
-                save_clicked = True
-        else:
-            if st.button("Edit table"):
+    with st.container(border=True):
+        action_cols = st.columns([1, 4])
+        with action_cols[0]:
+            if edit_mode:
+                if st.button("Save changes", type="primary", width="stretch"):
+                    save_clicked = True
+            elif st.button(
+                "Edit table",
+                type="primary",
+                width="stretch",
+                help="You can also select any row in the table below to start editing.",
+            ):
                 st.session_state.editor_edit_mode = True
                 st.rerun()
+        with action_cols[1]:
+            if edit_mode:
+                st.caption("Make changes in the table, then select **Save changes**.")
+            else:
+                st.caption("Select **Edit table**, or click any row below to begin editing.")
     if edit_mode:
         st.caption(
             "Editing in progress \u2014 nothing is saved until you press **Save changes**. "
@@ -1060,10 +1098,13 @@ if (
         st.session_state["_table_view_full"] = full_lookup
         view_frame["description"] = [_shorten_cell(value, 26) for value in view_frame["description"]]
         view_frame["merchant"] = [_shorten_cell(value, 20) for value in view_frame["merchant"]]
-        st.dataframe(
+        table_event = st.dataframe(
             view_frame,
+            key=f"export_view_table_{st.session_state.view_table_revision}",
             width="stretch",
             hide_index=True,
+            on_select="rerun",
+            selection_mode="single-cell",
             column_config={
                 "row_number": st.column_config.NumberColumn("Row", width=56),
                 "date": st.column_config.TextColumn("Date (MM/DD/YYYY)", width=100),
@@ -1090,6 +1131,10 @@ if (
                 "account": st.column_config.TextColumn("Account", width=80),
             },
         )
+        if table_event.selection.cells:
+            st.session_state.editor_edit_mode = True
+            st.session_state.view_table_revision += 1
+            st.rerun()
         viewed = st.session_state.get("_table_viewed")
         if viewed:
             with st.container(border=True):
@@ -1154,9 +1199,9 @@ if (
 
             # No categories are pre-filled and General Spending is not offered at
             # all (we removed it as a fallback). Start the flagged category
-            # inputs on placeholder options so the reviewer must explicitly
-            # choose a category instead of accepting the first option by accident.
-            review_main_options = [MAIN_CATEGORY_PLACEHOLDER, *FINAL_MAIN_CATEGORY_OPTIONS]
+            # input on a placeholder so the reviewer must explicitly choose a
+            # category pair instead of accepting the first option by accident.
+            review_category_options = [SUB_CATEGORY_PLACEHOLDER, *CATEGORY_PAIR_OPTIONS]
 
             with st.container(border=True):
                 if str(row["main_category"]) == "General Spending":
@@ -1183,39 +1228,30 @@ if (
                     key=f"flag_merchant_{current_idx}",
                 )
 
-                cat_cols = st.columns(2)
-                with cat_cols[0]:
-                    current_main = str(row["main_category"])
-                    main_category = st.selectbox(
-                        "Main category",
-                        review_main_options,
-                        index=(
-                            review_main_options.index(current_main)
-                            if current_main in review_main_options
-                            else 0
-                        ),
-                        key=f"flag_main_cat_{current_idx}",
-                    )
-                with cat_cols[1]:
-                    if main_category in CATEGORY_SUBCATEGORIES:
-                        sub_options = [
-                            SUB_CATEGORY_PLACEHOLDER,
-                            *sorted(CATEGORY_SUBCATEGORIES[main_category]),
-                        ]
-                    else:
-                        sub_options = [SUB_CATEGORY_PLACEHOLDER]
-                    current_sub = str(row["sub_category"])
-                    sub_category = st.selectbox(
-                        "Sub-category",
-                        sub_options,
-                        index=(
-                            sub_options.index(current_sub)
-                            if current_sub in sub_options
-                            and main_category in CATEGORY_SUBCATEGORIES
-                            else 0
-                        ),
-                        key=f"flag_sub_cat_{current_idx}",
-                    )
+                current_pair = CATEGORY_PAIR_TO_LABEL.get(
+                    (str(row["main_category"]), str(row["sub_category"])),
+                    SUB_CATEGORY_PLACEHOLDER,
+                )
+                selected_pair = st.selectbox(
+                    "Category (Main :: Sub)",
+                    review_category_options,
+                    index=(
+                        review_category_options.index(current_pair)
+                        if current_pair in review_category_options
+                        else 0
+                    ),
+                    key=(
+                        f"flag_category_pair_{st.session_state.review_widget_revision}_"
+                        f"{current_idx}"
+                    ),
+                )
+                category_pair = CATEGORY_LABEL_TO_PAIR.get(selected_pair)
+                main_category = (
+                    category_pair[0] if category_pair is not None else MAIN_CATEGORY_PLACEHOLDER
+                )
+                sub_category = (
+                    category_pair[1] if category_pair is not None else SUB_CATEGORY_PLACEHOLDER
+                )
 
             def save_current() -> None:
                 """Validate and save the current transaction, then rerun so it leaves the queue."""

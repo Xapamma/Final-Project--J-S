@@ -30,6 +30,11 @@ also lives in `report.md` (§ 7).
 | 2026-10-27 | Replaced the rule-based categorizer with a manual-labeling workflow: categories now start blank in the scripts and the Streamlit app (now our labeling tool); scaffolded `ml/ml_models.py` (TODO stubs only, no training code written); wrote tests (31 passing) and the docs. | `ml/bank_statment_processor.py`, `dashboard/cleaning_logic.py`, `dashboard.py`, `app.py`, `ml/ml_models.py`, `tests/`, `docs/` | Savanna & Jillian |
 | 2026-10-27 | Reorganized the repo for clarity: moved project docs into `docs/`, shared dashboard modules into the `dashboard/` package, headless pipeline + ML scripts into `ml/`; removed the redundant `bank_data_analytics.py`; added `.gitignore`; stopped tracking private data (`.data/`, `all_banks_final_categorized.csv`) and `__pycache__`. | repo layout: `docs/`, `dashboard/`, `ml/`, `tests/`, `.gitignore` | Savanna & Jillian |
 | 2026-11-02 | Added an optional resume flow that loads a prior website CSV download, preserves existing category labels, and lets users continue labeling uncategorized rows in a new session. | `app.py`, `dashboard/final_export.py`, `tests/` | Savanna & Jillian |
+| 2026-11-02 | Normalized bank labels when resuming a prior download and restored the combined Main :: Sub category selector in one-by-one transaction review. | `app.py`, `dashboard/final_export.py`, `tests/` | Savanna & Jillian |
+| 2026-11-02 | Reset review-panel state and widget keys when loading a continuation CSV so the new unresolved rows can be selected and applied immediately. | `app.py` | Savanna & Jillian |
+| 2026-11-02 | Improved the review toolbar visibility and made selecting a row in the read-only transaction table enter edit mode. | `app.py` | Savanna & Jillian |
+| 2026-11-02 | Changed the read-only table trigger to single-cell selection so clicking directly into any cell opens the editable table with category dropdown options. | `app.py` | Savanna & Jillian |
+| 2026-11-02 | Fixed the sidebar bank count to combine normalized bank labels from imported and editable data, and refresh immediately after adding a statement. | `app.py` | Savanna & Jillian |
 
 Notes on what the assistant saw/touched:
 
