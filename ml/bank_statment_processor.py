@@ -25,7 +25,7 @@ PEOPLE = {
     "savanna": "savanna_transactions.csv",
     "jillian": "jillian_transactions.csv",
 }
-KNOWN_BANKS = ["goldenwest", "sofi", "capital one"]
+KNOWN_BANKS = ["goldenwest", "sofi", "capital one", "bank of america"]
 ACCOUNT_MAP = {
     "cc": "credit card",
     "credit card": "credit card",
@@ -79,6 +79,11 @@ def load_bank_file(file: str, bank_name: str) -> pd.DataFrame:
             var_name="type",
             value_name="amount",
         ).dropna(subset=["amount"])
+    elif bank_name == "bank of america":
+        # BofA credit-card export: Transaction Date, Posting Date, Description,
+        # Reference Number, Amount (always positive), Type (debit/credit), Statement.
+        # The sign is set below from the `type` column.
+        df = df.rename(columns={"transaction date": "date"})
 
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df["amount"] = (
