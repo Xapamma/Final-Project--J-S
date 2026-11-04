@@ -36,6 +36,7 @@ from dashboard.final_export import (
     format_final_export,
     get_final_export_row_issues,
     make_transfer_review_rows,
+    make_manual_review_rows,
     normalize_account_type,
     normalize_bank_name,
     normalize_export_filename,
@@ -336,6 +337,21 @@ class ValidationAndReviewTests(unittest.TestCase):
             source_rows=pd.Series([3]),
         )
         self.assertEqual(review.iloc[0]["removal_reason"], "Manually categorized as Transfer.")
+
+    def test_manual_review_rows_preserve_category_and_source_metadata(self):
+        rows = pd.DataFrame(
+            [["06/01/2026", "Unknown charge", "debit", -12.0, "", "", "sofi", "checking"]],
+            columns=FINAL_EXPORT_COLUMNS,
+        )
+        review = make_manual_review_rows(
+            rows,
+            source_files=pd.Series(["s.csv"]),
+            source_rows=pd.Series([8]),
+            removal_reason="Manually excluded.",
+        )
+        self.assertEqual(review.iloc[0]["removal_reason"], "Manually excluded.")
+        self.assertEqual(review.iloc[0]["source_file"], "s.csv")
+        self.assertEqual(review.iloc[0]["source_row"], 8)
 
     def test_restored_dropped_row_can_be_converted_back(self):
         dropped = pd.DataFrame(

@@ -61,6 +61,10 @@ this list (the same list powers the dropdowns in the Streamlit app):
   (`Transfer`). The app does not infer this from the description; choose
   `Transfer` manually when appropriate. The row then moves to the manual review
   queue, where it can be restored if needed. Payment text alone never queues it.
+* Other transactions that should be left out can be selected with the
+  **Exclude** checkbox in **Edit table** and moved to the excluded-review queue
+  without assigning a category. Use **Select all visible** to select every
+  transaction currently shown by a search or filter before moving them.
 * `.robinhood` deposits or brokerage names → `Savings & Investments / Investments`.
 
 *(Add merchant-specific decisions here as we label.)*

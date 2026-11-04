@@ -38,6 +38,7 @@ from dashboard.final_export import (
     normalize_bank_name,
     normalize_export_filename,
     make_transfer_review_rows,
+    make_manual_review_rows,
     previous_export_to_standardized,
     restored_rows_to_standardized,
     split_duplicate_transactions,
@@ -385,6 +386,8 @@ if "dropped_editor_revision" not in st.session_state:
     st.session_state.dropped_editor_revision = 0
 if "export_editor_revision" not in st.session_state:
     st.session_state.export_editor_revision = 0
+if "selected_exclusion_rows" not in st.session_state:
+    st.session_state.selected_exclusion_rows = set()
 if "review_expanded" not in st.session_state:
     st.session_state.review_expanded = False
 if "review_widget_revision" not in st.session_state:
@@ -459,6 +462,7 @@ with st.sidebar:
         st.session_state.review_expanded = False
         st.session_state.flag_review_cursor = 0
         st.session_state.review_queue_total = 0
+        st.session_state.selected_exclusion_rows.clear()
         st.session_state.review_widget_revision += 1
         st.session_state.view_table_revision += 1
         st.session_state.pop(f"export_editor_{st.session_state.export_editor_revision}", None)
@@ -498,6 +502,7 @@ with st.sidebar:
                     source_column="source_file",
                     source_names={statement_to_remove},
                 )
+                st.session_state.selected_exclusion_rows.clear()
                 st.session_state.file_import_signatures.pop(statement_to_remove, None)
                 st.session_state.pop(f"export_editor_{st.session_state.export_editor_revision}", None)
                 st.session_state.pop(f"dropped_editor_{st.session_state.dropped_editor_revision}", None)
@@ -525,6 +530,7 @@ if previous_export_file is not None:
             st.session_state.dropped_transactions = pd.DataFrame(
                 columns=DROPPED_REVIEW_COLUMNS
             )
+            st.session_state.selected_exclusion_rows.clear()
             st.session_state.file_import_signatures = {}
             st.session_state.editor_edit_mode = False
             st.session_state.review_expanded = True
@@ -894,6 +900,7 @@ if uploaded_files:
                     source_column="_source_file",
                     source_name=selected_file.name,
                 )
+                st.session_state.selected_exclusion_rows.clear()
                 st.session_state.dropped_transactions = replace_source_rows(
                     st.session_state.dropped_transactions,
                     new_review,
@@ -963,6 +970,7 @@ if (
     st.session_state.editable_transactions = editable
     editor_data = editable.copy()
     editor_data.insert(0, "row_number", range(1, len(editor_data) + 1))
+    editor_data.insert(1, "exclude", False)
     editor_data["sub_category"] = [
         CATEGORY_PAIR_TO_LABEL.get((str(main), str(sub)), "")
         for main, sub in zip(editable["main_category"], editable["sub_category"])
@@ -987,6 +995,11 @@ if (
         st.caption(f"Showing {len(visible_editor_data):,} of {len(editor_data):,} transactions.")
     else:
         visible_editor_data = editor_data
+    selected_exclusion_rows = st.session_state.setdefault(
+        "selected_exclusion_rows", set()
+    )
+    editor_data["exclude"] = editor_data["row_number"].isin(selected_exclusion_rows)
+    visible_editor_data = editor_data.loc[visible_editor_data.index].copy()
     account_options = sorted(
         set(editable["account"].dropna().astype(str))
         | {"checking", "savings", "credit card", "money market", "gold account"}
@@ -997,9 +1010,10 @@ if (
     )
     edit_mode = st.session_state.get("editor_edit_mode", False)
     save_clicked = False
+    exclude_clicked = False
 
     with st.container(border=True):
-        action_cols = st.columns([1, 4])
+        action_cols = st.columns([1, 1, 1, 2])
         with action_cols[0]:
             if edit_mode:
                 if st.button("Save changes", type="primary", width="stretch"):
@@ -1013,10 +1027,32 @@ if (
                 st.session_state.editor_edit_mode = True
                 st.rerun()
         with action_cols[1]:
+            if edit_mode and st.button(
+                "Move selected to excluded",
+                width="stretch",
+                help="Select rows using the Exclude checkbox, then move them to the manual review queue.",
+            ):
+                exclude_clicked = True
+        with action_cols[2]:
+            if edit_mode and st.button(
+                "Select all visible",
+                width="stretch",
+                help="Check Exclude for every row currently shown, including filtered search results.",
+            ):
+                selected_exclusion_rows.update(
+                    visible_editor_data["row_number"].astype(int).tolist()
+                )
+                st.session_state.export_editor_revision += 1
+                st.rerun()
+        with action_cols[3]:
             if edit_mode:
-                st.caption("Make changes in the table, then select **Save changes**.")
+                st.caption(
+                    "Make changes in the table, then select **Save changes**. "
+                    "Use **Select all visible** for filtered bulk selection, or "
+                    "**Exclude** to remove selected rows without categorizing them."
+                )
             else:
-                st.caption("Select **Edit table**, or click any row below to begin editing.")
+                st.caption("")
     if edit_mode:
         st.caption(
             "Editing in progress \u2014 nothing is saved until you press **Save changes**. "
@@ -1035,6 +1071,12 @@ if (
             disabled=False,
             column_config={
                 "row_number": st.column_config.NumberColumn("Row", disabled=True, width=56),
+                "exclude": st.column_config.CheckboxColumn(
+                    "Exclude",
+                    default=False,
+                    help="Select this row to move it to the excluded transaction review queue.",
+                    width=72,
+                ),
                 "date": st.column_config.TextColumn("Date (MM/DD/YYYY)", width=100, required=True),
                 "description": st.column_config.TextColumn("Description", width=180, required=True),
                 "type": st.column_config.SelectboxColumn(
@@ -1062,7 +1104,8 @@ if (
         elif search_query:
             edited_editor_data = editor_data
 
-        if not save_clicked:
+        commit_clicked = save_clicked or exclude_clicked
+        if not commit_clicked:
             # Drafting: edits stay in the widget and are NOT committed. Downstream
             # review, validation, and download all use the last-saved data, so no
             # errors flash during editing and the screen does not re-sort/reload.
@@ -1071,11 +1114,15 @@ if (
             pair_mismatch = pd.Series(False, index=edited_transactions.index)
         else:
             # Save pressed: commit the editor contents to the session.
+            exclude_mask = edited_editor_data["exclude"].fillna(False).astype(bool)
+            if exclude_clicked and not exclude_mask.any():
+                st.info("Select at least one transaction using the Exclude checkbox.")
+                st.stop()
             edited_source_metadata = edited_editor_data[EDITABLE_SOURCE_COLUMNS].reset_index(drop=True)
             edited_transactions = edited_editor_data.drop(
-                columns=["row_number", *EDITABLE_SOURCE_COLUMNS]
+                columns=["row_number", "exclude", *EDITABLE_SOURCE_COLUMNS]
             ).copy()
-# The composite "Main :: Sub" column is the single category input, so
+            # The composite "Main :: Sub" column is the single category input, so
             # Main category is always derived from it and can never disagree with
             # the sub-category the user picked.
             category_pairs = edited_transactions["sub_category"].map(CATEGORY_LABEL_TO_PAIR)
@@ -1092,16 +1139,35 @@ if (
                 edited_transactions["main_category"].notna()
             ] = True
             edited_source_metadata["_category_reviewed"] = reviewed_categories
+            edited_transactions = edited_transactions[FINAL_EXPORT_COLUMNS]
+            excluded_moved = False
+            if exclude_clicked:
+                excluded_rows = make_manual_review_rows(
+                    edited_transactions.loc[exclude_mask].reset_index(drop=True),
+                    source_files=edited_source_metadata.loc[exclude_mask, "_source_file"],
+                    source_rows=edited_source_metadata.loc[exclude_mask, "_source_row"],
+                    removal_reason="Manually excluded.",
+                )
+                st.session_state.dropped_transactions = pd.concat(
+                    [st.session_state.dropped_transactions, excluded_rows],
+                    ignore_index=True,
+                )
+                st.session_state.pop(
+                    f"dropped_editor_{st.session_state.dropped_editor_revision}", None
+                )
+                st.session_state.dropped_editor_revision += 1
+                edited_transactions = edited_transactions.loc[~exclude_mask].reset_index(drop=True)
+                edited_source_metadata = edited_source_metadata.loc[~exclude_mask].reset_index(drop=True)
+                pair_mismatch = pair_mismatch.loc[~exclude_mask].reset_index(drop=True)
+                excluded_moved = True
+                st.info(f"Moved {int(exclude_mask.sum())} transaction(s) to the manual excluded queue.")
             transfer_mask = (
                 edited_transactions["main_category"].astype("string").str.strip().eq("Transfer").fillna(False)
             )
             transfers_moved = bool(transfer_mask.any())
             edited_transactions.loc[transfer_mask, "sub_category"] = CATEGORY_PAIR_TO_LABEL[("Transfer", "N/A")]
-
-            edited_transactions = edited_transactions[FINAL_EXPORT_COLUMNS]
             # Category labels live only in the session's editable transactions
             # (download the CSV to keep them).
-            edited_transactions = edited_transactions.reset_index(drop=True)
             if transfers_moved:
                 transfer_rows = make_transfer_review_rows(
                     edited_transactions.loc[transfer_mask].reset_index(drop=True),
@@ -1130,7 +1196,8 @@ if (
             st.session_state.editable_transactions = pd.concat(
                 [edited_transactions, edited_source_metadata], axis=1
             )[EDITABLE_COLUMNS]
-            if save_clicked:
+            if save_clicked or excluded_moved:
+                selected_exclusion_rows.clear()
                 st.session_state.editor_edit_mode = False
                 st.session_state.pop(f"export_editor_{st.session_state.export_editor_revision}", None)
                 st.session_state.export_editor_revision += 1
@@ -1145,7 +1212,7 @@ if (
         # on demand.
         view_frame = visible_editor_data.copy()
         view_frame = view_frame.drop(
-            columns=["main_category", "_category_reviewed", "_source_file", "_source_row"]
+            columns=["main_category", "exclude", "_category_reviewed", "_source_file", "_source_row"]
         )
         full_lookup = editor_data.loc[
             view_frame.index, ["row_number", "date", "description"]

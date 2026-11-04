@@ -378,10 +378,32 @@ def make_transfer_review_rows(
     source_rows: pd.Series,
 ) -> pd.DataFrame:
     """Convert user-marked transfers into rows in the excluded-review table."""
+    return make_manual_review_rows(
+        transactions,
+        source_files=source_files,
+        source_rows=source_rows,
+        removal_reason="Manually categorized as Transfer.",
+        main_category="Transfer",
+        sub_category="N/A",
+    )
+
+
+def make_manual_review_rows(
+    transactions: pd.DataFrame,
+    *,
+    source_files: pd.Series,
+    source_rows: pd.Series,
+    removal_reason: str,
+    main_category: str | None = None,
+    sub_category: str | None = None,
+) -> pd.DataFrame:
+    """Convert manually excluded transactions into review-queue rows."""
     review = transactions[FINAL_EXPORT_COLUMNS].copy().reset_index(drop=True)
-    review["main_category"] = "Transfer"
-    review["sub_category"] = "N/A"
-    review["removal_reason"] = "Manually categorized as Transfer."
+    if main_category is not None:
+        review["main_category"] = main_category
+    if sub_category is not None:
+        review["sub_category"] = sub_category
+    review["removal_reason"] = removal_reason
     review["status"] = pd.NA
     review["source_file"] = source_files.reset_index(drop=True)
     review["source_row"] = source_rows.reset_index(drop=True)
