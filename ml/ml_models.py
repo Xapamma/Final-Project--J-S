@@ -80,7 +80,9 @@ CSV_PATH = "savanna_transactions.csv"  # produced by bank_statment_processor.py
 
 def load_dataset(csv_path=CSV_PATH):
     """Read the processed CSV into a DataFrame with clean text columns."""
-    df = pd.read_csv(csv_path)
+    # keep_default_na=False: "N/A" is a real sub-category (Transfer / N/A),
+    # not a missing value. Only truly empty cells count as unlabeled.
+    df = pd.read_csv(csv_path, keep_default_na=False, na_values=[""])
     if "description" not in df.columns:
         raise ValueError(f"CSV at {csv_path} is missing a 'description' column.")
     df["description"] = df["description"].fillna("").astype(str)
@@ -212,19 +214,96 @@ def categorize_dataframe(df, vectorizer, main_model, sub_model):
     raise NotImplementedError("TODO: implement categorize_dataframe()")
 
 
-def evaluate_categorizer(y_true, y_pred, label_name="main_category"):
-    """TODO (we write this): accuracy + per-category + confusion matrix.
+def evaluate_categorizer(y_true, y_pred, label_name="main_category", verbose=True):
+    """Accuracy, macro-F1, per-category report, and confusion matrix.
 
-    What to implement:
-        from sklearn.metrics import (accuracy_score, classification_report,
-                                     confusion_matrix)
-    Print/report:
-        - overall accuracy
-        - accuracy per category - small categories matter
-          (e.g. "Fast Offerings", "CC Rewards")
-        - a confusion matrix so we can study which categories get mixed up
+    Macro-F1 averages F1 over categories equally, so small categories
+    (e.g. "Fast Offerings", "CC Rewards") count as much as big ones -
+    important because our categories are very imbalanced.
+
+    Returns a dict with:
+        accuracy, macro_f1      floats
+        report                  DataFrame, one row per category
+                                (precision, recall, f1-score, support)
+        confusion_matrix        DataFrame, rows = true, columns = predicted
     """
-    raise NotImplementedError("TODO: implement evaluate_categorizer()")
+    from sklearn.metrics import (accuracy_score, classification_report,
+                                 confusion_matrix, f1_score)
+
+    y_true = pd.Series(y_true, dtype="string").reset_index(drop=True)
+    y_pred = pd.Series(y_pred, dtype="string").reset_index(drop=True)
+    labels = sorted(set(y_true) | set(y_pred))
+
+    accuracy = accuracy_score(y_true, y_pred)
+    macro_f1 = f1_score(y_true, y_pred, labels=labels, average="macro", zero_division=0)
+    report = pd.DataFrame(
+        classification_report(y_true, y_pred, labels=labels,
+                              output_dict=True, zero_division=0)
+    ).T.loc[labels]
+    report["support"] = report["support"].astype(int)
+    matrix = pd.DataFrame(
+        confusion_matrix(y_true, y_pred, labels=labels),
+        index=pd.Index(labels, name="true"),
+        columns=pd.Index(labels, name="predicted"),
+    )
+
+    if verbose:
+        print(f"=== {label_name} ===")
+        print(f"accuracy: {accuracy:.3f}   macro-F1: {macro_f1:.3f}   (n={len(y_true)})")
+        print(report.round(3).to_string())
+        print("\nconfusion matrix (rows = true, columns = predicted):")
+        print(matrix.to_string())
+
+    return {"accuracy": accuracy, "macro_f1": macro_f1,
+            "report": report, "confusion_matrix": matrix}
+
+
+def within_person_cv(df, fit_predict, target="main_category", n_splits=5,
+                     group_col="description"):
+    """Within-person evaluation with GroupKFold grouped by cleaned description.
+
+    WHY GROUPS: the same merchant shows up many times (e.g. 49 "Chevron"
+    rows). With a plain random split, copies of a merchant land in both
+    train and test and the model just memorizes it - accuracy looks great
+    but says nothing about NEW merchants. Grouping by cleaned description
+    keeps every copy of a merchant in the same fold.
+
+    fit_predict(train_df, test_df) -> predictions for test_df.
+        Do ALL fitting inside it (TF-IDF vectorizer included) using only
+        train_df, so nothing about the test fold leaks into training.
+        Example with our functions:
+            def knn_fit_predict(train, test):
+                X_tr, vec = vectorize_descriptions(train["description"])
+                model = train_knn(X_tr, train["main_category"])
+                return model.predict(vec.transform(test["description"]))
+
+    Returns (fold_scores DataFrame, overall result from evaluate_categorizer
+    computed on the pooled out-of-fold predictions).
+    """
+    from sklearn.model_selection import GroupKFold
+
+    labeled = load_labeled(df).reset_index(drop=True)
+    groups = labeled[group_col].astype(str).str.strip().str.lower()
+    n_groups = groups.nunique()
+    if n_groups < n_splits:
+        raise ValueError(f"Only {n_groups} distinct merchants; need at least n_splits={n_splits}.")
+
+    predictions = pd.Series(pd.NA, index=labeled.index, dtype="string")
+    fold_rows = []
+    splitter = GroupKFold(n_splits=n_splits)
+    for fold, (train_idx, test_idx) in enumerate(splitter.split(labeled, groups=groups), start=1):
+        train, test = labeled.iloc[train_idx], labeled.iloc[test_idx]
+        # Sanity check: no merchant in both train and test.
+        assert not set(groups.iloc[train_idx]) & set(groups.iloc[test_idx])
+        fold_pred = pd.Series(list(fit_predict(train, test)), index=test.index, dtype="string")
+        predictions.loc[test.index] = fold_pred
+        scores = evaluate_categorizer(test[target], fold_pred, verbose=False)
+        fold_rows.append({"fold": fold, "n_test": len(test),
+                          "accuracy": scores["accuracy"], "macro_f1": scores["macro_f1"]})
+
+    fold_scores = pd.DataFrame(fold_rows)
+    overall = evaluate_categorizer(labeled[target], predictions, label_name=target, verbose=False)
+    return fold_scores, overall
 
 
 # ---------------------------------------------------------------------------
