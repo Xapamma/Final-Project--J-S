@@ -127,6 +127,30 @@ class LoadTransactionsTests(unittest.TestCase):
         signature_b = build_import_signature("digest", **common, positive_amounts_are_debits=True)
         self.assertNotEqual(signature_a, signature_b)
 
+    def test_declined_rows_are_preserved_for_review(self):
+        path = self.write_csv(
+            "sofi_checking.csv",
+            "Date,Description,Amount,Status\n"
+            "2026-03-01,Declined purchase,-25.00,Declined\n"
+            "2026-03-02,Coffee,-5.00,Posted\n",
+        )
+        result = load_transactions(
+            path,
+            bank="SoFi",
+            column_mapping={
+                "date": "Date",
+                "description": "Description",
+                "amount": "Amount",
+                "status": "Status",
+            },
+        )
+
+        self.assertEqual(len(result), 1)
+        declined = result.attrs["declined_transactions"]
+        self.assertEqual(declined["description"].tolist(), ["Declined purchase"])
+        self.assertEqual(declined["status"].tolist(), ["Declined"])
+        self.assertEqual(declined["source_row"].tolist(), [2])
+
     def test_file_rows_can_be_removed_and_replaced_by_filename(self):
         frame = pd.DataFrame({"source_file": ["a.csv", "a.csv", "b.csv"]})
         removed = remove_source_rows(frame, source_column="source_file", source_names={"a.csv"})

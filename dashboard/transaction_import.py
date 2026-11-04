@@ -448,10 +448,8 @@ def load_transactions(
 
     result = result[STANDARD_COLUMNS].reset_index(drop=True)
     result.attrs["declined_rows_dropped"] = int(declined_rows.sum())
-    object.__setattr__(
-        result,
-        "_declined_transactions",
-        declined_review[STANDARD_COLUMNS].reset_index(drop=True),
+    result.attrs["declined_transactions"] = declined_review[STANDARD_COLUMNS].reset_index(
+        drop=True
     )
     return result
 
@@ -463,7 +461,21 @@ def load_transaction_files(
     if not csv_paths:
         raise ValueError("At least one CSV path is required.")
     frames = [load_transactions(path, **options) for path in csv_paths]
-    return pd.concat(frames, ignore_index=True)
+    combined = pd.concat(frames, ignore_index=True)
+    declined_frames = [
+        frame.attrs["declined_transactions"]
+        for frame in frames
+        if not frame.attrs["declined_transactions"].empty
+    ]
+    combined.attrs["declined_rows_dropped"] = sum(
+        frame.attrs["declined_rows_dropped"] for frame in frames
+    )
+    combined.attrs["declined_transactions"] = (
+        pd.concat(declined_frames, ignore_index=True)
+        if declined_frames
+        else pd.DataFrame(columns=STANDARD_COLUMNS)
+    )
+    return combined
 
 
 def remove_source_rows(

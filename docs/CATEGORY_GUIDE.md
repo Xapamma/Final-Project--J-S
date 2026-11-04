@@ -30,7 +30,6 @@ this list (the same list powers the dropdowns in the Streamlit app):
 | Entertainment | Gaming, Subscriptions, Recreation, Tickets |
 | Savings & Investments | Dividends, Investments, Emergency Fund, Retirement, House Down Payment |
 | Miscellaneous | Fees & Charges, Other Services |
-| Vacations / Travel | Airfare, Travel, Lodging, Souvenirs |
 
 ## 2. Labeling rules (follow these every time)
 

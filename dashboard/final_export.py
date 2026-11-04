@@ -93,7 +93,6 @@ CATEGORY_SUBCATEGORIES = {
         "Savings / Other Withdrawals",
     ],
     "Miscellaneous": ["Fees & Charges", "Other Services"],
-    "Vacations / Travel": ["Airfare", "Travel", "Lodging", "Souvenirs"],
 }
 
 FINAL_MAIN_CATEGORY_OPTIONS = sorted(CATEGORY_SUBCATEGORIES)

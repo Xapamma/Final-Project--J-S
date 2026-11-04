@@ -438,7 +438,20 @@ if st.session_state.get("export_editor_schema_version") != 5:
 with st.sidebar:
     st.header("Imported data")
     current_data = st.session_state.standardized_transactions
-    st.metric("Imported rows", len(current_data))
+    available_rows = len(st.session_state.editable_transactions)
+    review_rows = len(st.session_state.dropped_transactions)
+    accounted_rows = available_rows + review_rows
+    st.metric("Rows available to edit", available_rows)
+    st.metric("Rows in review", review_rows)
+    st.caption(f"Rows accounted for: {accounted_rows:,}")
+    raw_rows = len(current_data)
+    if raw_rows != accounted_rows:
+        unaccounted_rows = raw_rows - accounted_rows
+        st.warning(
+            f"{abs(unaccounted_rows):,} imported row(s) are not currently in the "
+            "editable table or review queue. They remain in the imported session "
+            "data and have not been deleted."
+        )
     bank_values = []
     for frame, column in (
         (current_data, "bank"),
@@ -834,9 +847,8 @@ if uploaded_files:
                     positive_amounts_are_debits=positive_amounts_are_debits,
                 )
                 standardized["source_file"] = selected_file.name
-                declined = getattr(
-                    standardized,
-                    "_declined_transactions",
+                declined = standardized.attrs.get(
+                    "declined_transactions",
                     pd.DataFrame(columns=STANDARD_COLUMNS),
                 ).copy()
                 if not declined.empty:
