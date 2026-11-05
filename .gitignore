@@ -24,3 +24,5 @@ dist/
 /all_banks_final_ml_categorized.csv
 /savanna_transactions.csv
 /jillian_transactions.csv
+/jillian_transactions_labeled.csv
+/categorized_transactions_review*.csv
