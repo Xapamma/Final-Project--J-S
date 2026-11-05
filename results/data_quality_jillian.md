@@ -13,18 +13,18 @@ bofa_credit_card.csv  bank of america       393  2024-12-05  2025-12-03         
 ## Cleaning steps
 
 ```
-                                                           rows
-step                                                           
-raw rows loaded                                             393
-dropped by noise/transfer filter                              0
-rows after cleaning                                         393
-descriptions rewritten by clean_description + smart_title   392
-noise-pattern rows remaining (should be 0)                    0
+                                                                   rows
+step                                                                   
+raw rows loaded                                                     393
+dropped by noise/transfer filter (and approved duplicate removal)     0
+rows after cleaning                                                 393
+descriptions rewritten by clean_description + smart_title           392
+noise-pattern rows remaining (should be 0)                            0
 ```
 
 ## Duplicates and missing values
 
-- Possible duplicates (same date, raw description, amount, bank, account): **1** (not removed automatically - could be real repeat purchases)
+- Possible duplicates (same date, raw description, amount, bank, account): **1** (could be real repeat purchases; the processor flags these for review)
 
 ```
                  missing
