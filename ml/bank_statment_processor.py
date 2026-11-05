@@ -25,8 +25,6 @@ import numpy as np
 import pandas as pd
 from rapidfuzz import fuzz, process
 
-from dashboard.cleaning_logic import clean_description, smart_title
-
 DATA_FOLDER = ".data"
 PEOPLE = {
     "savanna": "savanna_transactions.csv",
@@ -58,7 +56,6 @@ DUPLICATE_DECISIONS = {"keep", "remove"}
 OUTPUT_COLUMNS = [
     "date",
     "description",
-    "raw_description",
     "type",
     "amount",
     "main_category",
@@ -241,9 +238,6 @@ def process_person(person_folder: str) -> pd.DataFrame | None:
     )
     combined = combined.loc[~is_noise].copy()
     combined = review_duplicates(combined, person_folder)
-    combined["description"] = combined["description"].apply(clean_description).apply(
-        smart_title
-    )
     combined["main_category"] = np.nan
     combined["sub_category"] = np.nan
     return combined[OUTPUT_COLUMNS]

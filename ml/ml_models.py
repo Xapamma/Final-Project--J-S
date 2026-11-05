@@ -64,7 +64,7 @@ If our ML models can't beat those, something is wrong.
 
 DATASET COLUMNS WE WORK WITH (output of bank_statement_processor.py)
 --------------------------------------------------------------------
-  date, description (cleaned), raw_description (original), type,
+  date, description (original bank text), type,
   amount, main_category (blank), sub_category (blank), bank, account
 """
 
@@ -118,8 +118,6 @@ def vectorize_descriptions(descriptions, max_features=5000):
         - the sign of `amount` (negative = spending, positive = income)
         - `bank` / `account` type (checking vs savings vs credit card)
         - day of week / month from `date`
-        - compare raw_description (original text) vs description
-          (cleaned text) - that comparison is one of our questions
         - optional: pretrained embeddings (sentence-transformers)
           instead of tf-idf bag of words
     """

@@ -71,24 +71,22 @@ def run_checks(person, labeled_csv=None):
     lines += ["## Source files", "", _md_table(raw_files.set_index("file")) if not raw_files.empty else "(none)", ""]
 
     # 2. Rows changed by each cleaning step
-    raw_desc = df["raw_description"].fillna("").astype(str)
+    raw_desc = df["description"].fillna("").astype(str)
     noise_left = raw_desc.str.lower().apply(lambda x: any(n in x for n in NOISE_PATTERNS)).sum()
-    desc_changed = (raw_desc != df["description"].fillna("").astype(str)).sum()
     steps = pd.DataFrame([
         {"step": "raw rows loaded", "rows": raw_total},
         {"step": "dropped by noise/transfer filter", "rows": raw_total - len(df)},
-        {"step": "rows after cleaning", "rows": len(df)},
-        {"step": "descriptions rewritten by clean_description + smart_title", "rows": int(desc_changed)},
+        {"step": "rows after processing", "rows": len(df)},
         {"step": "noise-pattern rows remaining (should be 0)", "rows": int(noise_left)},
     ]).set_index("step")
     lines += ["## Cleaning steps", "", _md_table(steps), ""]
 
     # 3. Basic quality
-    dup_cols = ["date", "raw_description", "amount", "bank", "account"]
+    dup_cols = ["date", "description", "amount", "bank", "account"]
     dups = int(df.duplicated(subset=dup_cols).sum())
     missing = df.isna().sum().rename("missing").to_frame()
     lines += ["## Duplicates and missing values", "",
-              f"- Possible duplicates (same date, raw description, amount, bank, account): **{dups}** "
+              f"- Possible duplicates (same date, description, amount, bank, account): **{dups}** "
               "(not removed automatically - could be real repeat purchases)", "",
               _md_table(missing), ""]
 
@@ -117,7 +115,7 @@ def run_checks(person, labeled_csv=None):
         per_cat["share"] = (per_cat["transactions"] / per_cat["transactions"].sum()).round(3)
         lines += [_md_table(per_cat), "",
                   f"- Distinct sub-categories used: {df.loc[labeled_mask, 'sub_category'].nunique()}",
-                  f"- Distinct merchants (cleaned descriptions): {df['description'].nunique()}", ""]
+                  f"- Distinct descriptions: {df['description'].nunique()}", ""]
 
     report = "\n".join(lines)
     os.makedirs(RESULTS_DIR, exist_ok=True)
