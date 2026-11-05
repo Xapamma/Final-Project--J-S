@@ -45,3 +45,32 @@ ML question: After cleaning and combining our personal bank statements into one 
 Raw data stays private; a made-up sample will support reproduction. Backup scope: main categories only, a shorter date range, or one person's data.
 
 Full plan: [docs/project-plan.md](docs/project-plan.md)
+
+### 2026-11-05 – Data and reference result
+
+We collected and labeled transaction data from Jillian's Bank of America
+credit card and Savanna's Goldenwest, SoFi, and Capital One accounts. The raw
+bank exports remain private in the gitignored `.data/` directory. The current
+cleaned samples contain 393 Jillian transactions and 998 Savanna transactions,
+with no missing values or month gaps in the reported coverage checks. Category
+labels follow the shared [category guide](docs/CATEGORY_GUIDE.md).
+
+The headless processor standardizes bank formats, makes spending negative and
+income positive, preserves the original bank descriptions, and leaves
+categories blank for labeling:
+
+```bash
+uv sync
+uv run python -m ml.bank_statment_processor
+```
+
+Relevant code and supporting output:
+
+- [ml/bank_statment_processor.py](ml/bank_statment_processor.py)
+- [ml/quality_checks.py](ml/quality_checks.py)
+- [Jillian data-quality report](results/data_quality_jillian.md)
+- [data and reference result](docs/data_and_reference_result.md)
+
+The first reference-model result is still pending. The planned baseline is a
+classifier that always predicts the most common category in Savanna's training
+data, followed by comparisons with KNN, Random Forest, and a neural network.
