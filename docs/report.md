@@ -172,6 +172,12 @@ in [`results/first_result.md`](../results/first_result.md).
   committed so the pipeline can be reproduced.
 * Reproduce with the made-up sample: follow `SETUP.md` (install → run the
   pipeline → train → evaluate). Anyone can substitute their own bank exports.
+* **AI assistance disclosure:** We used AI tools to help conceive project
+  ideas, write and debug code, and polish work we had already created. We
+  verified AI-assisted code and claims against our data, tests, and source
+  files. Our team created this report and the presentation, including their
+  outlines, interpretation, and conclusions; AI was not used to generate
+  those deliverables.
 ## 7. Project log
 
 ### 2026-10-27 – Project plan & first pipeline
