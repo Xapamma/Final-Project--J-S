@@ -25,3 +25,4 @@ dist/
 /savanna_transactions.csv
 /jillian_transactions.csv
 /jillian_transactions_labeled.csv
+/categorized_transactions_review*.csv
