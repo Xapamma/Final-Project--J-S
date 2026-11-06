@@ -31,27 +31,32 @@
 
 - **Dataset and question:** A labeled transaction dataset for two people across several banks, used to test how well a categorizer trained on one person works on the other as well as what ML method categorizes the transactions most accurately.
 - **Sources:** Only our own statement exports. We may use our own data but will not redistribute it.
-- **Observation and main fields:** one transaction per row, with person (A or B), bank, account type, date, original description, cleaned description, amount, and category label.
+- **Observation and main fields:** one transaction per row, with person (A or B), bank, account type, date, original description, amount, and category label.
 - **Building the dataset:**
   1. Load each bank's CSV into a common format, building on the dashboard's existing import code.
-  2. Clean the data: standardize dates and signs, remove duplicates, flag transfers between our own accounts, and clean up descriptions.
+  2. Clean the data: standardize dates and signs, remove duplicates, flag transfers between our own accounts, and preserve the original descriptions for modeling.
   3. Write a short category guide so we label consistently, then each label our own transactions. We will both label a shared sample to check how consistently we label.
   4. Combine everything into one final dataset.
 - **Documentation:** We will record which files were used (bank, account, date range, download date) and what each cleaning step changed.
 - **Quality checks:** duplicates, missing values, gaps in dates, how many transactions each cleaning step affects, how many transactions fall in each category, and how often we agree on the shared sample.
 - **Sharing:** The real data stays private. A made-up sample will let readers run the full pipeline, and anyone could rebuild a similar dataset from their own bank exports.
-- **ML method:** We will try all sorts of ML methods to discover the most accurate categorizer. Some methods will include KNN, Random Forests, and ANN. We will use text embeddings to convert the descriptions into numeric vectors where math can be performed.
+- **ML method:** All planned ML models will use pretrained sentence embeddings
+  as their shared text representation. In the first run, KNN will use those
+  embeddings plus amount, with character TF-IDF plus amount as an additional
+  KNN-only comparison. Random Forests and ANN will use the embedding features.
 
 ## Initial reference and proposed contribution
 
-- **Baseline:** always predicting the most common category. Models predict from the transaction description only (we dropped the merchant column).
+- **Baseline:** always predicting the most common category. Models predict from the transaction description and amount (we dropped the merchant column).
 - **Our contribution:** the category guide, the cleaning pipeline for multiple banks, the labeled dataset, and experiments showing what affects categorization accuracy.
-- **Credit:** The import approach comes from Person A's existing dashboard repository (linked). We will use scikit-learn and pandas and disclose any AI help in `docs/report.md`.
+- **Credit:** The import approach comes from Person A's existing dashboard repository (linked). We will use scikit-learn and pandas.
 
 ## Evaluation and evidence
 
 - **Design:** First test within one person's data, making sure the same transaction doesn't appear in both training and test data. Then train on Person A's data and test on Person B's.
-- **Comparisons:** our model vs. the baseline, and original vs. cleaned descriptions.
+- **Comparisons:** the first run compares embedding KNN and TF-IDF KNN against
+  the most-common baseline. Future Random Forest and ANN models will use the
+  same embedding-plus-amount inputs as the embedding KNN.
 - **Metric:** accuracy, plus checking how well each category does on its own
 - **Evidence against our expectation:** cleaning that doesn't help, or results on Person B's data that are about as good as on Person A's.
 - **Errors to look at:** which categories get confused (confusion matrix), merchants that only appear in Person B's data, and cases where the "error" is really a labeling difference between us.
@@ -66,7 +71,10 @@
 ## Reproducibility and team contributions
 
 - **Repository:** code, data instructions (no real data), results, and `report.md` will live in our new project repository, with `pyproject.toml`, `uv.lock`, and the Python version committed.
-- **First runnable result (Nov. 5):** load and clean a first batch of each person's data and report basic quality checks. Also implement text embeddings and try a simple ML method like KNN to see how it works and if this is the right direction for our project.
+- **First runnable result (Nov. 5):** load the first labeled batch from each
+  person, report basic quality checks, and compare sentence-embedding KNN
+  with weighted amount against the additional character TF-IDF KNN
+  comparison with weighted amount.
 - **Team contributions:** Savanna leads training; Jillian leads testing. We will write the category guide together, label our own data, label a shared sample, and review each other's code.
 - **Instructor feedback requested:** confirmation that using our own private financial data is fine with these precautions, and whether this dataset work is substantial enough for Route C.
 

@@ -23,7 +23,7 @@ writes one headless dataset per person.
 | `dashboard.py`, `app.py`, `pages/` | The Streamlit app (Home / Process statements / Overview / Analytics / Budget) |
 | `dashboard/` | The app's shared modules: import, export/validation, analytics, description cleaning, fuzzy search, budget PDF/Excel export, bank layout profiles |
 | `ml/` | Headless dataset builder (`bank_statment_processor.py`) and ML experiments (`ml_models.py`) |
-| `docs/` | `project-plan.md`, `report.md`, `CATEGORY_GUIDE.md`, `AI_USAGE.md` |
+| `docs/` | `project-plan.md`, `report.md`, `CATEGORY_GUIDE.md` |
 | `tests/` | Unit tests for the import/export pipeline |
 | `.data/` | Private raw bank CSVs — **never committed** (see README privacy notes) |
 
@@ -50,8 +50,10 @@ uv run python -m ml.bank_statment_processor
 Outputs:
 
 * `savanna_transactions.csv` and `jillian_transactions.csv` – columns:
-  `date, description, raw_description, type, amount, main_category,
+  `date, description, type, amount, main_category,
   sub_category, bank, account`.
+  The description is the original bank text; the processor keeps a separate
+  internal duplicate-review key but does not export it.
 * `main_category` / `sub_category` start **blank on purpose**. Fill them in by
   hand (the app is the easiest way) or with the ML models once implemented.
 
@@ -103,6 +105,74 @@ uv run python -c "from ml.ml_models import cross_person_experiment; cross_person
 * **Privacy:** raw statements and the labeled dataset are private per our plan —
   do not commit `.data/` or labeled CSVs. Only the made-up sample (to be added)
   goes into the repo for reproduction.
+
+### Safe private-data workflow
+
+1. Copy the bank exports into the correct private folders. Do not put them in
+   `docs/`, `ml/`, `results/`, or the repository root:
+
+   ```text
+   .data\
+     savanna\
+       sofi\sofi_checking.csv
+       goldenwest\goldenwest_credit.csv
+     jillian\
+       bank of america\boa_credit_card.csv
+   ```
+
+2. From the repository root, build the two standardized, unlabeled files:
+
+   ```powershell
+   uv run python -m ml.bank_statment_processor
+   ```
+
+   This creates `savanna_transactions.csv` and `jillian_transactions.csv`.
+   Open those files in the labeling workflow, fill in `main_category` and
+   `sub_category`, and save the labeled copies somewhere private. The
+   processor's generated CSVs are ignored by Git.
+
+3. Before running the experiment, confirm that both labeled files are local
+   and that the required columns are present:
+
+   ```powershell
+   uv run python -c "import pandas as pd; from pathlib import Path; files=['jillian_transactions_labeled.csv','savanna_transactions.csv']; required={'date','description','type','amount','main_category','sub_category','bank','account'}; [print(f'{f}: {len(pd.read_csv(f))} rows') or (_ for _ in ()).throw(ValueError(f'{f} is missing {required-set(pd.read_csv(f).columns)}')) for f in files if Path(f).exists()]"
+   ```
+
+4. Run the first-result experiment. It writes only aggregate scores,
+   category-level metrics, and confusion matrices to
+   `results/first_result.md`; it does not write descriptions or amounts:
+
+   **PowerShell:**
+
+   ```powershell
+   uv run python -m ml.first_result `
+     --jillian jillian_transactions_labeled.csv `
+     --savanna savanna_transactions.csv
+   ```
+
+   **Bash / Git Bash:**
+
+   ```bash
+   uv run python -m ml.first_result \
+     --jillian jillian_transactions_labeled.csv \
+     --savanna savanna_transactions.csv
+   ```
+
+5. Before committing documentation or code, verify that private files are
+   ignored. The command should print nothing for the private CSV names:
+
+   ```powershell
+   git check-ignore -v ".data\savanna\sofi\sofi_checking.csv" `
+     ".data\jillian\bank of america\boa_credit_card.csv" `
+     "jillian_transactions_labeled.csv" `
+     "savanna_transactions.csv"
+   git status --short
+   ```
+
+   `git check-ignore` should print an ignore rule for each path. The private
+   files should not appear in `git status --short`. Do not use `git add -f` on
+   private files. If one appears in `git status`, stop and remove it from the
+   staging area before committing.
 
 ## 7. Tests
 

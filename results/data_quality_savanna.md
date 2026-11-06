@@ -83,4 +83,4 @@ Gifts & Donations                14  0.014
 ```
 
 - Distinct sub-categories used: 44
-- Distinct merchants (cleaned descriptions): 423
+- Distinct original descriptions: 423

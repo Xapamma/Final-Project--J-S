@@ -1,7 +1,8 @@
 """
-First runnable result for the data checkpoint: a most-common baseline + KNN on
-Term Frequency-Inverse Document Frequency, predicting main_category
-from the transaction description only (no merchant column).
+First runnable result for the data checkpoint: a most-common baseline plus
+sentence-embedding KNN and a TF-IDF KNN comparison, predicting main_category
+from the transaction description and amount. Future ML models will use the
+sentence-embedding features.
 
     1. Within each person: GroupKFold (5 folds) grouped by description, so
        the same description text is never in both train and test.
@@ -69,7 +70,7 @@ def within_person_section(name, df):
     lines = [f"### {name}: within-person (GroupKFold, 5 folds, grouped by description)", "",
              f"{len(labeled)} labeled rows, {labeled['description'].str.lower().nunique()} distinct descriptions, "
              f"{labeled[TARGET].nunique()} main categories.", ""]
-    rows, knn_overall = [], None
+    rows, embedding_overall = [], None
     for model_name, fit_predict in FIRST_RESULT_MODELS.items():
         folds, overall = within_person_cv(df, fit_predict, target=TARGET)
         rows.append({
@@ -79,15 +80,15 @@ def within_person_section(name, df):
             "macro_f1_mean": folds["macro_f1"].mean(),
             "macro_f1_sd": folds["macro_f1"].std(),
         })
-        if model_name == "knn_tfidf":
-            knn_overall = overall
+        if model_name == "knn_embeddings":
+            embedding_overall = overall
     scores = pd.DataFrame(rows).set_index("model").round(3)
     lines += [_table(scores), "",
-              "KNN per-category report (pooled out-of-fold predictions):", "",
-              _table(knn_overall["report"].round(3)), "",
-              "KNN confusion matrix (rows = true category, columns = predicted; "
+              "Embedding KNN per-category report (pooled out-of-fold predictions):", "",
+              _table(embedding_overall["report"].round(3)), "",
+              "Embedding KNN confusion matrix (rows = true category, columns = predicted; "
               "bold diagonal = correct, · = 0):", "",
-              _confusion_table(knn_overall["confusion_matrix"]), ""]
+              _confusion_table(embedding_overall["confusion_matrix"]), ""]
     print(scores.to_string())
     return lines
 
@@ -113,9 +114,12 @@ def main():
     if not people:
         parser.error("give at least one of --jillian / --savanna")
 
-    lines = ["# First result: baseline vs. KNN (main_category)", "",
+    lines = ["# First result: baseline, TF-IDF KNN, and embedding KNN (main_category)", "",
              "Models: `most_common` (always the most frequent training label), "
-             "`knn_tfidf` (Term Frequency-Inverse Document Frequency + 5-NN, cosine). "
+             "`knn_tfidf` (character TF-IDF + standardized amount multiplied by 25 "
+             "+ 5-NN, cosine), and "
+             "`knn_embeddings` (all-MiniLM-L6-v2 sentence embeddings + standardized "
+             "amount multiplied by 25 + 5-NN, cosine). "
              "Rerun: `uv run python -m ml.first_result --jillian <csv> --savanna <csv>`", ""]
     for name, df in people.items():
         print(f"\n== {name} ==")

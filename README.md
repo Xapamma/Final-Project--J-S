@@ -31,7 +31,7 @@ Then follow [SETUP.md](SETUP.md): build the clean dataset headlessly with
 | `dashboard/` | Shared app modules: import, export/validation, analytics, description cleaning, search, budget export, bank profiles |
 | `ml/` | Headless dataset pipeline (`bank_statment_processor.py`) + ML experiments (`ml_models.py`, `first_result.py`) |
 | `results/` | Generated outputs: data-quality checks and model results (category names and counts only, no transactions) |
-| `docs/` | `project-plan.md`, `report.md`, `CATEGORY_GUIDE.md`, `AI_USAGE.md` |
+| `docs/` | `project-plan.md`, `report.md`, `CATEGORY_GUIDE.md` |
 | `tests/` | Unit tests |
 | `.data/` | Private raw bank CSVs (gitignored) |
 
@@ -58,14 +58,22 @@ uv sync
 uv run python -m ml.bank_statment_processor
 ```
 
-**First result.** We predict `main_category` from the transaction description only (we dropped the merchant column). The baseline always predicts the most common training category. We compare it with KNN (k = 5, cosine distance) on character-level TF-IDF (term frequency–inverse document frequency) features. Within-person scores use 5-fold GroupKFold grouped by description, so test descriptions never appear in training. Cross-person scores train on one person and test on the other.
+**First result.** We predict `main_category` from the original transaction
+description and amount only (we dropped the merchant column). The most-common
+category is the simple baseline. All planned ML models use pretrained
+`all-MiniLM-L6-v2` sentence embeddings plus amount; the first run also
+includes a TF-IDF-plus-amount KNN comparison. Amounts are standardized using
+training data and multiplied by 25. KNN uses cosine distance with `k = 5`.
+Within-person scores use 5-fold GroupKFold grouped by description, so test
+descriptions never appear in training. Cross-person scores train on one
+person and test on the other. The checked-in result table below contains the current comparison.
 
-| Setting | Baseline acc / macro F1 | KNN acc / macro F1 |
-|---|---|---|
-| Jillian within-person | 0.624 / 0.101 | 0.672 / 0.361 |
-| Savanna within-person | 0.348 / 0.042 | 0.599 / 0.487 |
-| Train Savanna → test Jillian | 0.623 / 0.077 | 0.578 / 0.270 |
-| Train Jillian → test Savanna | 0.348 / 0.040 | 0.376 / 0.118 |
+| Setting | Most-common baseline | TF-IDF KNN | Embedding KNN |
+|---|---|---|---|
+| Jillian within-person | 0.624 | 0.483 | 0.603 |
+| Savanna within-person | 0.348 | 0.505 | 0.559 |
+| Train Savanna → test Jillian | 0.623 | 0.384 | 0.496 |
+| Train Jillian → test Savanna | 0.348 | 0.185 | 0.274 |
 
 - Code: [`ml/first_result.py`](ml/first_result.py) (runner) and [`ml/ml_models.py`](ml/ml_models.py) (baseline, KNN, cross-validation, cross-person functions). Tests: [`tests/test_first_result.py`](tests/test_first_result.py)
 - Output, with per-category scores and confusion matrices: [results/first_result.md](results/first_result.md)

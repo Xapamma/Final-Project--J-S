@@ -32,9 +32,7 @@ MANUAL WORKFLOW (what we do BY HAND)
             can. (Split the file between us to go twice as fast.)
 
   STEP 3  Install the ML libraries (run in the project folder)
-            uv add scikit-learn
-            # optional, only if we later try real text embeddings:
-            # uv add sentence-transformers
+            uv add scikit-learn sentence-transformers
 
   STEP 4  Implement every TODO in this file. The scaffolding and data
             plumbing are written for us - the ML code is ours to write.
@@ -58,8 +56,9 @@ BASELINES WE HAVE TO BEAT
 -------------------------
   * always predict the most common category in training data
     (baseline_most_common())
-If our ML models can't beat that, something is wrong. We predict from the
-transaction description only (no merchant column).
+The first comparison includes character-level TF-IDF KNN and sentence-embedding
+KNN. Both use the original description and a standardized amount weighted by
+25; neither uses a merchant column.
 
 DATASET COLUMNS WE WORK WITH (output of bank_statement_processor.py)
 --------------------------------------------------------------------
@@ -67,8 +66,10 @@ DATASET COLUMNS WE WORK WITH (output of bank_statement_processor.py)
   amount, main_category (blank), sub_category (blank), bank, account
 """
 
-import pandas as pd
+from functools import lru_cache
+
 import numpy as np
+import pandas as pd
 
 CSV_PATH = "savanna_transactions.csv"  # produced by bank_statment_processor.py
 
@@ -97,28 +98,113 @@ def load_labeled(df):
 
 
 # ---------------------------------------------------------------------------
-# 1. FEATURES - turn transaction text into numbers an ML model can learn from
+# 1. FEATURES - turn transaction text and amounts into model features
 # ---------------------------------------------------------------------------
 
-def vectorize_descriptions(descriptions, max_features=5000, analyzer="char_wb"):
-    """Text -> numeric feature matrix (Term Frequency-Inverse Document Frequency).
+DEFAULT_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+DEFAULT_AMOUNT_WEIGHT = 25.0
 
-    Uses CHARACTER n-grams (3-5 letters, within word boundaries) instead of
-    whole words: raw bank text is full of store numbers, abbreviations and
-    truncated names ("WAL-MART #1234", "WM SUPERCENTER"), and character
-    pieces still match across those variations. Word n-grams are available
-    with analyzer="word" for comparison.
 
-    Returns (X, vectorizer). Return the fitted vectorizer too, because we MUST reuse it to
-    transform new transactions later (never fit again on new data).
+@lru_cache(maxsize=4)
+def _load_embedding_model(model_name):
+    from sentence_transformers import SentenceTransformer
+
+    return SentenceTransformer(model_name)
+
+
+def embed_descriptions(descriptions, model_name=DEFAULT_EMBEDDING_MODEL):
+    """Encode descriptions with a pretrained sentence-embedding model.
+
+    The model is loaded lazily and is not fitted on transaction data. This
+    keeps the text representation consistent across folds and people while
+    avoiding label or test-set leakage.
     """
+    model = _load_embedding_model(model_name)
+    values = pd.Series(descriptions).fillna("").astype(str).tolist()
+    embeddings = model.encode(
+        values,
+        convert_to_numpy=True,
+        normalize_embeddings=True,
+        show_progress_bar=False,
+    )
+    return embeddings, model
+
+
+def vectorize_descriptions(descriptions, max_features=5000, analyzer="char_wb"):
+    """Create train-fitted character TF-IDF features for comparison KNN."""
     from sklearn.feature_extraction.text import TfidfVectorizer
 
     ngram_range = (3, 5) if analyzer in ("char", "char_wb") else (1, 2)
-    vectorizer = TfidfVectorizer(lowercase=True, analyzer=analyzer,
-                                 ngram_range=ngram_range, max_features=max_features)
-    X = vectorizer.fit_transform(pd.Series(descriptions).fillna("").astype(str))
-    return X, vectorizer
+    vectorizer = TfidfVectorizer(
+        lowercase=True,
+        analyzer=analyzer,
+        ngram_range=ngram_range,
+        max_features=max_features,
+    )
+    values = pd.Series(descriptions).fillna("").astype(str)
+    return vectorizer.fit_transform(values), vectorizer
+
+
+def _amount_features(train_amounts, test_amounts, weight=DEFAULT_AMOUNT_WEIGHT):
+    """Scale amounts using training statistics, then apply their KNN weight."""
+    train_values = pd.to_numeric(train_amounts, errors="coerce").fillna(0.0)
+    test_values = pd.to_numeric(test_amounts, errors="coerce").fillna(0.0)
+    mean = float(train_values.mean())
+    scale = float(train_values.std(ddof=0))
+    if scale == 0:
+        scale = 1.0
+    train_scaled = ((train_values - mean) / scale).to_numpy().reshape(-1, 1)
+    test_scaled = ((test_values - mean) / scale).to_numpy().reshape(-1, 1)
+    return train_scaled * weight, test_scaled * weight
+
+
+def build_embedding_features(
+    train,
+    test,
+    *,
+    amount_weight=DEFAULT_AMOUNT_WEIGHT,
+    model_name=DEFAULT_EMBEDDING_MODEL,
+):
+    """Build leakage-safe description-plus-amount features for KNN.
+
+    Amounts are standardized from the training rows only before being
+    multiplied by ``amount_weight`` and concatenated to the text embeddings.
+    """
+    train_embeddings, model = embed_descriptions(train["description"], model_name)
+    test_embeddings = model.encode(
+        test["description"].fillna("").astype(str).tolist(),
+        convert_to_numpy=True,
+        normalize_embeddings=True,
+        show_progress_bar=False,
+    )
+    train_amounts, test_amounts = _amount_features(
+        train["amount"], test["amount"], weight=amount_weight
+    )
+    return (
+        np.hstack([train_embeddings, train_amounts]),
+        np.hstack([test_embeddings, test_amounts]),
+        model,
+    )
+
+
+def build_tfidf_features(
+    train,
+    test,
+    *,
+    amount_weight=DEFAULT_AMOUNT_WEIGHT,
+):
+    """Build TF-IDF-plus-amount features using training data only."""
+    from scipy.sparse import hstack
+
+    train_text, vectorizer = vectorize_descriptions(train["description"])
+    test_text = vectorizer.transform(test["description"].fillna("").astype(str))
+    train_amounts, test_amounts = _amount_features(
+        train["amount"], test["amount"], weight=amount_weight
+    )
+    return (
+        hstack([train_text, train_amounts]).tocsr(),
+        hstack([test_text, test_amounts]).tocsr(),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +212,7 @@ def vectorize_descriptions(descriptions, max_features=5000, analyzer="char_wb"):
 # ---------------------------------------------------------------------------
 
 def train_knn(X_train, y_train, n_neighbors=5, metric="cosine"):
-    """k-nearest-neighbors classifier (cosine distance suits TF-IDF vectors)."""
+    """Train KNN on the selected text-and-amount features."""
     from sklearn.neighbors import KNeighborsClassifier
 
     model = KNeighborsClassifier(n_neighbors=n_neighbors, metric=metric)
@@ -185,8 +271,7 @@ def categorize_transaction(description, amount=None,
     a single transaction - the core of what we want the ML to do.
 
     What to implement:
-        1. X_row = vectorizer.transform([str(description)])
-           # if we added amount/bank as features, build that row too
+        1. Build the sentence-embedding-plus-amount feature row.
         2. main = main_model.predict(X_row)[0]
         3. sub  = sub_model.predict(X_row)[0]
         4. return {"main_category": main, "sub_category": sub}
@@ -198,8 +283,8 @@ def categorize_dataframe(df, vectorizer, main_model, sub_model):
     """TODO (we write this): fill category columns for EVERY row in df.
 
     Loop over all rows (df.itertuples() or df.apply), call
-    categorize_transaction() on each one, and write the predictions back
-    into the DataFrame. Return the updated df.
+    categorize_transaction() on each one using the shared embedding features,
+    and write the predictions back into the DataFrame. Return the updated df.
     """
     raise NotImplementedError("TODO: implement categorize_dataframe()")
 
@@ -250,22 +335,22 @@ def evaluate_categorizer(y_true, y_pred, label_name="main_category", verbose=Tru
 
 def within_person_cv(df, fit_predict, target="main_category", n_splits=5,
                      group_col="description"):
-    """Within-person evaluation with GroupKFold grouped by cleaned description.
+    """Within-person evaluation with GroupKFold grouped by description.
 
-    WHY GROUPS: the same merchant shows up many times (e.g. 49 "Chevron"
-    rows). With a plain random split, copies of a merchant land in both
+    WHY GROUPS: the same description shows up many times (e.g. 49 "Chevron"
+    rows). With a plain random split, copies of a description land in both
     train and test and the model just memorizes it - accuracy looks great
-    but says nothing about NEW merchants. Grouping by cleaned description
-    keeps every copy of a merchant in the same fold.
+    but says nothing about NEW descriptions. Grouping by description keeps
+    every copy of a description in the same fold.
 
     fit_predict(train_df, test_df) -> predictions for test_df.
-        Do ALL fitting inside it (TF-IDF vectorizer included) using only
+        Do all train-data-dependent preparation inside it using only
         train_df, so nothing about the test fold leaks into training.
         Example with our functions:
             def knn_fit_predict(train, test):
-                X_tr, vec = vectorize_descriptions(train["description"])
+                X_tr, X_te, _ = build_embedding_features(train, test)
                 model = train_knn(X_tr, train["main_category"])
-                return model.predict(vec.transform(test["description"]))
+                return model.predict(X_te)
 
     Returns (fold_scores DataFrame, overall result from evaluate_categorizer
     computed on the pooled out-of-fold predictions).
@@ -308,7 +393,7 @@ def train_and_categorize(csv_path=CSV_PATH,
     Suggested steps:
         1. df  = load_dataset(csv_path)
         2. lab = load_labeled(df)
-        3. X, vectorizer = vectorize_descriptions(lab["description"])
+        3. X, embedder = embed_descriptions(lab["description"])
         4. Split FIRST (hold out a test set so we can honestly evaluate):
                from sklearn.model_selection import train_test_split
                X_tr, X_te, y_tr_main, y_te_main = train_test_split(
@@ -341,16 +426,46 @@ def baseline_most_common(train, test, target="main_category"):
     return [train[target].value_counts().idxmax()] * len(test)
 
 
-def knn_tfidf(train, test, target="main_category", n_neighbors=5):
-    """Term Frequency-Inverse Document Frequency (fit on train only) + KNN."""
-    X_train, vectorizer = vectorize_descriptions(train["description"])
+def knn_embeddings(
+    train,
+    test,
+    target="main_category",
+    n_neighbors=5,
+    amount_weight=DEFAULT_AMOUNT_WEIGHT,
+    model_name=DEFAULT_EMBEDDING_MODEL,
+):
+    """Predict with sentence embeddings plus a weighted standardized amount."""
+    X_train, X_test, _ = build_embedding_features(
+        train,
+        test,
+        amount_weight=amount_weight,
+        model_name=model_name,
+    )
     model = train_knn(X_train, train[target], n_neighbors=n_neighbors)
-    return model.predict(vectorizer.transform(test["description"].astype(str)))
+    return model.predict(X_test)
+
+
+def knn_tfidf(
+    train,
+    test,
+    target="main_category",
+    n_neighbors=5,
+    amount_weight=DEFAULT_AMOUNT_WEIGHT,
+):
+    """Predict with TF-IDF character features plus a weighted amount."""
+    X_train, X_test = build_tfidf_features(
+        train,
+        test,
+        amount_weight=amount_weight,
+    )
+    model = train_knn(X_train, train[target], n_neighbors=n_neighbors)
+    return model.predict(X_test)
 
 
 FIRST_RESULT_MODELS = {
     "most_common": baseline_most_common,
     "knn_tfidf": knn_tfidf,
+    "knn_embeddings": knn_embeddings,
 }
 
 

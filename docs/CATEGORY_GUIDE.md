@@ -79,7 +79,7 @@ examples where we disagreed and what we decided:
 
 ## 5. Why this matters for ML
 
-The models in `ml/ml_models.py` learn from `description` (and later
-`raw_description`, amount, bank, etc.) to predict these labels. Garbage-in /
+The models in `ml/ml_models.py` learn from the original `description` and
+standardized `amount` to predict these labels. Garbage-in /
 garbage-out: inconsistent labels cap how good any model can be — that is exactly
 the effect our project wants to measure ("labeling differences between us").
