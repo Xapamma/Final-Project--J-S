@@ -45,7 +45,7 @@ MANUAL WORKFLOW (what we do BY HAND)
   STEP 6  Evaluate
             Look at accuracy + the confusion matrix from
             evaluate_categorizer(). Which categories get confused?
-            Which merchants show up in test but never in training?
+            Which descriptions show up in test but never in training?
 
 CROSS-PERSON EXPERIMENT (our project question)
 ----------------------------------------------
@@ -58,9 +58,8 @@ BASELINES WE HAVE TO BEAT
 -------------------------
   * always predict the most common category in training data
     (baseline_most_common())
-  * per-merchant lookup: every merchant gets the category it appeared
-    with most often in training
-If our ML models can't beat those, something is wrong.
+If our ML models can't beat that, something is wrong. We predict from the
+transaction description only (no merchant column).
 
 DATASET COLUMNS WE WORK WITH (output of bank_statement_processor.py)
 --------------------------------------------------------------------
@@ -102,7 +101,7 @@ def load_labeled(df):
 # ---------------------------------------------------------------------------
 
 def vectorize_descriptions(descriptions, max_features=5000, analyzer="char_wb"):
-    """Text -> numeric feature matrix (TF-IDF).
+    """Text -> numeric feature matrix (Term Frequency-Inverse Document Frequency).
 
     Uses CHARACTER n-grams (3-5 letters, within word boundaries) instead of
     whole words: raw bank text is full of store numbers, abbreviations and
@@ -112,13 +111,6 @@ def vectorize_descriptions(descriptions, max_features=5000, analyzer="char_wb"):
 
     Returns (X, vectorizer). Return the fitted vectorizer too, because we MUST reuse it to
     transform new transactions later (never fit again on new data).
-
-    Extra features we can add once this works:
-        - the sign of `amount` (negative = spending, positive = income)
-        - `bank` / `account` type (checking vs savings vs credit card)
-        - day of week / month from `date`
-        - optional: pretrained embeddings (sentence-transformers)
-          instead of tf-idf bag of words
     """
     from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -338,7 +330,7 @@ def train_and_categorize(csv_path=CSV_PATH,
 
 
 # ---------------------------------------------------------------------------
-# 5. FIRST RESULT - baselines + KNN as fit_predict functions
+# 5. FIRST RESULT - baseline + KNN as fit_predict functions
 #    Each takes (train_df, test_df) and returns predictions for test_df.
 #    All fitting uses train_df only, so they plug straight into
 #    within_person_cv() and cross_person_experiment() without leakage.
@@ -346,22 +338,11 @@ def train_and_categorize(csv_path=CSV_PATH,
 
 def baseline_most_common(train, test, target="main_category"):
     """Always predict the most frequent label in the training rows."""
-    return [train[target].mode()[0]] * len(test)
-
-
-def baseline_merchant_lookup(train, test, target="main_category"):
-    """Each description gets the label it had most often in training.
-
-    Unseen descriptions fall back to the most common label. NOTE: within a
-    person, GroupKFold guarantees test descriptions never appear in training,
-    so this equals baseline_most_common there; it only matters cross-person.
-    """
-    lookup = train.groupby("description")[target].agg(lambda s: s.mode()[0])
-    return test["description"].map(lookup).fillna(train[target].mode()[0]).tolist()
+    return [train[target].value_counts().idxmax()] * len(test)
 
 
 def knn_tfidf(train, test, target="main_category", n_neighbors=5):
-    """TF-IDF (fit on train only) + KNN."""
+    """Term Frequency-Inverse Document Frequency (fit on train only) + KNN."""
     X_train, vectorizer = vectorize_descriptions(train["description"])
     model = train_knn(X_train, train[target], n_neighbors=n_neighbors)
     return model.predict(vectorizer.transform(test["description"].astype(str)))
@@ -369,7 +350,6 @@ def knn_tfidf(train, test, target="main_category", n_neighbors=5):
 
 FIRST_RESULT_MODELS = {
     "most_common": baseline_most_common,
-    "merchant_lookup": baseline_merchant_lookup,
     "knn_tfidf": knn_tfidf,
 }
 
@@ -379,7 +359,7 @@ def cross_person_experiment(train_df, test_df, models=None, target="main_categor
 
     Call it both ways (A->B and B->A). Returns one row per model with
     accuracy and macro-F1, plus the share of test rows whose exact
-    description also appears in training (familiar merchants).
+    description also appears in training (familiar descriptions).
     """
     models = models or FIRST_RESULT_MODELS
     train, test = load_labeled(train_df), load_labeled(test_df)

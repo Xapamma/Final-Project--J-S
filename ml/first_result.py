@@ -1,11 +1,10 @@
 """
-first_result.py
-===============
-First runnable result for the data checkpoint: two baselines + KNN on
-TF-IDF, predicting main_category.
+First runnable result for the data checkpoint: a most-common baseline + KNN on
+Term Frequency-Inverse Document Frequency, predicting main_category
+from the transaction description only (no merchant column).
 
     1. Within each person: GroupKFold (5 folds) grouped by description, so
-       the same merchant text is never in both train and test.
+       the same description text is never in both train and test.
     2. Cross-person (if both files are given): train on one, test on the
        other, in both directions.
 
@@ -35,6 +34,36 @@ def _table(df):
     return "```\n" + df.to_string() + "\n```"
 
 
+# Short column headers so the confusion matrix fits on screen.
+ABBREVIATIONS = {
+    "Education": "Edu", "Entertainment": "Ent", "Food & Dining": "Food",
+    "Gifts & Donations": "Gift", "Health & Wellness": "Hlth",
+    "Housing & Bills": "Hous", "Income": "Inc", "Miscellaneous": "Misc",
+    "Savings & Investments": "Sav", "Shopping & Supplies": "Shop",
+    "Transfer": "Xfer", "Transportation": "Trans", "Travel & Lodging": "Trvl",
+}
+
+
+def _abbrev(category):
+    return ABBREVIATIONS.get(category) or "".join(w[0] for w in category.split() if w[0].isalnum())
+
+
+def _confusion_table(cm):
+    """Markdown confusion matrix: short column codes, '·' for zeros, bold diagonal."""
+    codes = [_abbrev(c) for c in cm.columns]
+    lines = ["| true ↓ / predicted → | " + " | ".join(codes) + " | total |",
+             "|---|" + "---:|" * (len(codes) + 1)]
+    for true in cm.index:
+        cells = []
+        for pred in cm.columns:
+            n = int(cm.loc[true, pred])
+            cell = "·" if n == 0 else str(n)
+            cells.append(f"**{cell}**" if true == pred else cell)
+        lines.append(f"| {true} ({_abbrev(true)}) | " + " | ".join(cells)
+                     + f" | {int(cm.loc[true].sum())} |")
+    return "\n".join(lines)
+
+
 def within_person_section(name, df):
     labeled = load_labeled(df)
     lines = [f"### {name}: within-person (GroupKFold, 5 folds, grouped by description)", "",
@@ -56,8 +85,9 @@ def within_person_section(name, df):
     lines += [_table(scores), "",
               "KNN per-category report (pooled out-of-fold predictions):", "",
               _table(knn_overall["report"].round(3)), "",
-              "KNN confusion matrix (rows = true, columns = predicted):", "",
-              _table(knn_overall["confusion_matrix"]), ""]
+              "KNN confusion matrix (rows = true category, columns = predicted; "
+              "bold diagonal = correct, · = 0):", "",
+              _confusion_table(knn_overall["confusion_matrix"]), ""]
     print(scores.to_string())
     return lines
 
@@ -83,10 +113,9 @@ def main():
     if not people:
         parser.error("give at least one of --jillian / --savanna")
 
-    lines = ["# First result: baselines vs. KNN (main_category)", "",
+    lines = ["# First result: baseline vs. KNN (main_category)", "",
              "Models: `most_common` (always the most frequent training label), "
-             "`merchant_lookup` (label seen most often for that exact description; "
-             "falls back to most_common), `knn_tfidf` (character TF-IDF + 5-NN, cosine). "
+             "`knn_tfidf` (Term Frequency-Inverse Document Frequency + 5-NN, cosine). "
              "Rerun: `uv run python -m ml.first_result --jillian <csv> --savanna <csv>`", ""]
     for name, df in people.items():
         print(f"\n== {name} ==")

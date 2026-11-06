@@ -1,17 +1,16 @@
-# First result: baselines vs. KNN (main_category)
+# First result: baseline vs. KNN (main_category)
 
-Models: `most_common` (always the most frequent training label), `merchant_lookup` (label seen most often for that exact description; falls back to most_common), `knn_tfidf` (character TF-IDF + 5-NN, cosine). Rerun: `uv run python -m ml.first_result --jillian <csv> --savanna <csv>`
+Models: `most_common` (always the most frequent training label), `knn_tfidf` (Term Frequency-Inverse Document Frequency + 5-NN, cosine). Rerun: `uv run python -m ml.first_result --jillian <csv> --savanna <csv>`
 
 ### Jillian: within-person (GroupKFold, 5 folds, grouped by description)
 
 393 labeled rows, 166 distinct descriptions, 10 main categories.
 
 ```
-                 accuracy_mean  accuracy_sd  macro_f1_mean  macro_f1_sd
-model                                                                  
-most_common              0.624        0.215          0.101        0.031
-merchant_lookup          0.624        0.215          0.101        0.031
-knn_tfidf                0.672        0.217          0.361        0.053
+             accuracy_mean  accuracy_sd  macro_f1_mean  macro_f1_sd
+model                                                              
+most_common          0.624        0.215          0.101        0.031
+knn_tfidf            0.672        0.217          0.361        0.053
 ```
 
 KNN per-category report (pooled out-of-fold predictions):
@@ -30,33 +29,30 @@ Transportation           0.078   0.129     0.098       31
 Travel & Lodging         0.714   1.000     0.833        5
 ```
 
-KNN confusion matrix (rows = true, columns = predicted):
+KNN confusion matrix (rows = true category, columns = predicted; bold diagonal = correct, · = 0):
 
-```
-predicted            Education  Entertainment  Food & Dining  Health & Wellness  Income  Miscellaneous  Shopping & Supplies  Transfer  Transportation  Travel & Lodging
-true                                                                                                                                                                   
-Education                   39              0              3                  0       0              0                    0         4               0                 1
-Entertainment                2              1             12                  0       0              0                    0         0               1                 1
-Food & Dining                1              2            197                  0       0              0                    0         0              45                 0
-Health & Wellness            0              0              3                  0       0              0                    0         0               0                 0
-Income                       1              1              0                  0       0              0                    0         0               0                 0
-Miscellaneous                0              1              3                  0       0              0                    1         0               0                 0
-Shopping & Supplies          0              1             18                  0       0              0                    4         0               1                 0
-Transfer                     0              0              0                  0       0              0                    0        14               0                 0
-Transportation               0              2             24                  0       0              0                    0         1               4                 0
-Travel & Lodging             0              0              0                  0       0              0                    0         0               0                 5
-```
+| true ↓ / predicted → | Edu | Ent | Food | Hlth | Inc | Misc | Shop | Xfer | Trans | Trvl | total |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Education (Edu) | **39** | · | 3 | · | · | · | · | 4 | · | 1 | 47 |
+| Entertainment (Ent) | 2 | **1** | 12 | · | · | · | · | · | 1 | 1 | 17 |
+| Food & Dining (Food) | 1 | 2 | **197** | · | · | · | · | · | 45 | · | 245 |
+| Health & Wellness (Hlth) | · | · | 3 | **·** | · | · | · | · | · | · | 3 |
+| Income (Inc) | 1 | 1 | · | · | **·** | · | · | · | · | · | 2 |
+| Miscellaneous (Misc) | · | 1 | 3 | · | · | **·** | 1 | · | · | · | 5 |
+| Shopping & Supplies (Shop) | · | 1 | 18 | · | · | · | **4** | · | 1 | · | 24 |
+| Transfer (Xfer) | · | · | · | · | · | · | · | **14** | · | · | 14 |
+| Transportation (Trans) | · | 2 | 24 | · | · | · | · | 1 | **4** | · | 31 |
+| Travel & Lodging (Trvl) | · | · | · | · | · | · | · | · | · | **5** | 5 |
 
 ### Savanna: within-person (GroupKFold, 5 folds, grouped by description)
 
 998 labeled rows, 421 distinct descriptions, 13 main categories.
 
 ```
-                 accuracy_mean  accuracy_sd  macro_f1_mean  macro_f1_sd
-model                                                                  
-most_common              0.348        0.105          0.042        0.009
-merchant_lookup          0.348        0.105          0.042        0.009
-knn_tfidf                0.599        0.148          0.487        0.078
+             accuracy_mean  accuracy_sd  macro_f1_mean  macro_f1_sd
+model                                                              
+most_common          0.348        0.105          0.042        0.009
+knn_tfidf            0.599        0.148          0.487        0.078
 ```
 
 KNN per-category report (pooled out-of-fold predictions):
@@ -78,36 +74,33 @@ Transportation             0.294   0.485     0.366       97
 Travel & Lodging           0.500   0.107     0.176       28
 ```
 
-KNN confusion matrix (rows = true, columns = predicted):
+KNN confusion matrix (rows = true category, columns = predicted; bold diagonal = correct, · = 0):
 
-```
-predicted              Education  Entertainment  Food & Dining  Gifts & Donations  Health & Wellness  Housing & Bills  Income  Miscellaneous  Savings & Investments  Shopping & Supplies  Transfer  Transportation  Travel & Lodging
-true                                                                                                                                                                                                                                
-Education                      2              2              1                  0                  3                1       3              0                      0                    2         0               0                 0
-Entertainment                  0             46              7                  0                  0                0       2              6                      0                    1         0               1                 0
-Food & Dining                  4              4            295                  2                  5                3       5              3                      1                    8         0              15                 2
-Gifts & Donations              0              0              1                 13                  0                0       0              0                      0                    0         0               0                 0
-Health & Wellness              8              1             11                  0                 14                0       0              2                      0                    2         1               0                 0
-Housing & Bills                5              0              0                  0                  0                1       0             12                      0                    0        19              12                 0
-Income                         3              0              0                  0                  1                1      75              2                      0                    1         0               0                 0
-Miscellaneous                  1              0             11                  1                  0                3       0             18                      1                    3         0               0                 1
-Savings & Investments          0              0              0                  0                  0                0       0              1                     47                    0         0              83                 0
-Shopping & Supplies            2              3             24                  0                  2                0       6              2                      0                   35         0               2                 0
-Transfer                       0              0              0                  0                  0               15       1              0                      0                    0         2               0                 0
-Transportation                 1              1             42                  0                  2                1       0              0                      1                    2         0              47                 0
-Travel & Lodging               0              0             19                  0                  0                0       0              3                      0                    3         0               0                 3
-```
+| true ↓ / predicted → | Edu | Ent | Food | Gift | Hlth | Hous | Inc | Misc | Sav | Shop | Xfer | Trans | Trvl | total |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Education (Edu) | **2** | 2 | 1 | · | 3 | 1 | 3 | · | · | 2 | · | · | · | 14 |
+| Entertainment (Ent) | · | **46** | 7 | · | · | · | 2 | 6 | · | 1 | · | 1 | · | 63 |
+| Food & Dining (Food) | 4 | 4 | **295** | 2 | 5 | 3 | 5 | 3 | 1 | 8 | · | 15 | 2 | 347 |
+| Gifts & Donations (Gift) | · | · | 1 | **13** | · | · | · | · | · | · | · | · | · | 14 |
+| Health & Wellness (Hlth) | 8 | 1 | 11 | · | **14** | · | · | 2 | · | 2 | 1 | · | · | 39 |
+| Housing & Bills (Hous) | 5 | · | · | · | · | **1** | · | 12 | · | · | 19 | 12 | · | 49 |
+| Income (Inc) | 3 | · | · | · | 1 | 1 | **75** | 2 | · | 1 | · | · | · | 83 |
+| Miscellaneous (Misc) | 1 | · | 11 | 1 | · | 3 | · | **18** | 1 | 3 | · | · | 1 | 39 |
+| Savings & Investments (Sav) | · | · | · | · | · | · | · | 1 | **47** | · | · | 83 | · | 131 |
+| Shopping & Supplies (Shop) | 2 | 3 | 24 | · | 2 | · | 6 | 2 | · | **35** | · | 2 | · | 76 |
+| Transfer (Xfer) | · | · | · | · | · | 15 | 1 | · | · | · | **2** | · | · | 18 |
+| Transportation (Trans) | 1 | 1 | 42 | · | 2 | 1 | · | · | 1 | 2 | · | **47** | · | 97 |
+| Travel & Lodging (Trvl) | · | · | 19 | · | · | · | · | 3 | · | 3 | · | · | **3** | 28 |
 
 ### Cross-person: train Savanna -> test Jillian
 
 0.0% of Jillian's rows have a description that also appears in Savanna's data.
 
 ```
-                 accuracy  macro_f1  n_test
-model                                      
-most_common         0.623     0.077     393
-merchant_lookup     0.623     0.077     393
-knn_tfidf           0.578     0.270     393
+             accuracy  macro_f1  n_test
+model                                  
+most_common     0.623     0.077     393
+knn_tfidf       0.578     0.270     393
 ```
 
 ### Cross-person: train Jillian -> test Savanna
@@ -115,9 +108,8 @@ knn_tfidf           0.578     0.270     393
 0.0% of Savanna's rows have a description that also appears in Jillian's data.
 
 ```
-                 accuracy  macro_f1  n_test
-model                                      
-most_common         0.348     0.040     998
-merchant_lookup     0.348     0.040     998
-knn_tfidf           0.376     0.118     998
+             accuracy  macro_f1  n_test
+model                                  
+most_common     0.348     0.040     998
+knn_tfidf       0.376     0.118     998
 ```

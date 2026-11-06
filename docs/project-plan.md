@@ -44,14 +44,14 @@
 
 ## Initial reference and proposed contribution
 
-- **Baselines:** always predicting the most common category, and a simple lookup that assigns each description the category it had most often in the training data.
+- **Baseline:** always predicting the most common category. Models predict from the transaction description only (we dropped the merchant column).
 - **Our contribution:** the category guide, the cleaning pipeline for multiple banks, the labeled dataset, and experiments showing what affects categorization accuracy.
 - **Credit:** The import approach comes from Person A's existing dashboard repository (linked). We will use scikit-learn and pandas and disclose any AI help in `docs/report.md`.
 
 ## Evaluation and evidence
 
 - **Design:** First test within one person's data, making sure the same transaction doesn't appear in both training and test data. Then train on Person A's data and test on Person B's.
-- **Comparisons:** our model vs. the baselines, and original vs. cleaned descriptions.
+- **Comparisons:** our model vs. the baseline, and original vs. cleaned descriptions.
 - **Metric:** accuracy, plus checking how well each category does on its own
 - **Evidence against our expectation:** cleaning that doesn't help, or results on Person B's data that are about as good as on Person A's.
 - **Errors to look at:** which categories get confused (confusion matrix), merchants that only appear in Person B's data, and cases where the "error" is really a labeling difference between us.

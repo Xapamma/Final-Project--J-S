@@ -1,11 +1,11 @@
-"""Tests for the first-result baselines, KNN, and cross-person helper."""
+"""Tests for the first-result baseline, KNN, and cross-person helper."""
 
 import unittest
 
 import pandas as pd
 
-from ml.ml_models import (baseline_merchant_lookup, baseline_most_common,
-                          cross_person_experiment, knn_tfidf, within_person_cv)
+from ml.ml_models import (baseline_most_common, cross_person_experiment,
+                          knn_tfidf, within_person_cv)
 
 
 def _frame(rows):
@@ -28,11 +28,6 @@ class FirstResultTest(unittest.TestCase):
         test = _frame([("ANYTHING", "Transportation")] * 3)
         self.assertEqual(baseline_most_common(TRAIN, test), ["Food & Dining"] * 3)
 
-    def test_merchant_lookup_uses_seen_descriptions_and_falls_back(self):
-        test = _frame([("CHEVRON 0123 PROVO UT", "?"), ("NEW STORE", "?")])
-        self.assertEqual(baseline_merchant_lookup(TRAIN, test),
-                         ["Transportation", "Food & Dining"])
-
     def test_knn_matches_unseen_store_numbers(self):
         test = _frame([("CHEVRON 9999 SANDY UT", "?"), ("SMITHS FOOD 1234 UT", "?")])
         preds = list(knn_tfidf(TRAIN, test, n_neighbors=1))
@@ -43,7 +38,7 @@ class FirstResultTest(unittest.TestCase):
                        ("SMITHS FOOD 9 UT", "Food & Dining")])
         scores = cross_person_experiment(TRAIN, test)
         self.assertEqual(list(scores["model"]),
-                         ["most_common", "merchant_lookup", "knn_tfidf"])
+                         ["most_common", "knn_tfidf"])
         self.assertAlmostEqual(scores["familiar_descriptions"].iloc[0], 0.5)
 
     def test_within_person_cv_runs_knn(self):
