@@ -63,8 +63,8 @@ banks), and label-style differences between us may matter as much as the model.
 * **Models:** k-nearest neighbors (KNN), Random Forest, and a simple neural
   network (ANN/MLP) via scikit-learn; each produces a `main_category` and a
   `sub_category` prediction.
-* **Baselines to beat:** (1) always predicting the most common category,
-  (2) per-description lookup of the most frequent category in training.
+* **Baseline to beat:** always predicting the most common category.
+  Models use the transaction description only (no merchant column).
 
 ### 3.4 Evaluation design
 
@@ -95,7 +95,6 @@ per category, and shared-sample agreement will be summarized here.
 | Method | Main accuracy | Sub accuracy | Beats baseline? |
 |---|---|---|---|
 | Baseline: most common | _TBD_ | _TBD_ | — |
-| Baseline: per-description lookup | _TBD_ | _TBD_ | — |
 | KNN | _TBD_ | _TBD_ | _TBD_ |
 | Random Forest | _TBD_ | _TBD_ | _TBD_ |
 | ANN / MLP | _TBD_ | _TBD_ | _TBD_ |
@@ -120,7 +119,7 @@ _TBD after results._ Likely themes to cover:
 * Do small categories hurt accuracy, and is main-category-only a better
   backup scope?
 * How much of the cross-person gap is the model vs. how we label?
-* Which merchants look different between us (never seen in training)?
+* Which descriptions look different between us (never seen in training)?
 
 ## 6. Privacy & reproduction
 
@@ -165,6 +164,6 @@ Full dated log and future-use policy: [`AI_USAGE.md`](AI_USAGE.md).
       AI help in `AI_USAGE.md`).
 - [ ] Run KNN (target Nov 5) using the instructions in `ml/ml_models.py`
       docstrings; then Random Forest and ANN.
-- [ ] Run `cross_person_experiment()` and compare with baselines.
+- [ ] Run `cross_person_experiment()` and compare with the baseline.
 - [ ] Fill in § 4 tables and the confusion matrix from real runs.
 - [ ] Confirm privacy and the AI policy with the instructor (per plan).

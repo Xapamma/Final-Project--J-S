@@ -45,7 +45,7 @@ MANUAL WORKFLOW (what we do BY HAND)
   STEP 6  Evaluate
             Look at accuracy + the confusion matrix from
             evaluate_categorizer(). Which categories get confused?
-            Which merchants show up in test but never in training?
+            Which descriptions show up in test but never in training?
 
 CROSS-PERSON EXPERIMENT (our project question)
 ----------------------------------------------
@@ -58,9 +58,8 @@ BASELINES WE HAVE TO BEAT
 -------------------------
   * always predict the most common category in training data
     (baseline_most_common())
-  * per-merchant lookup: every merchant gets the category it appeared
-    with most often in training
-If our ML models can't beat those, something is wrong.
+If our ML models can't beat that, something is wrong. We predict from the
+transaction description only (no merchant column).
 
 DATASET COLUMNS WE WORK WITH (output of bank_statement_processor.py)
 --------------------------------------------------------------------
@@ -83,6 +82,9 @@ def load_dataset(csv_path=CSV_PATH):
     # keep_default_na=False: "N/A" is a real sub-category (Transfer / N/A),
     # not a missing value. Only truly empty cells count as unlabeled.
     df = pd.read_csv(csv_path, keep_default_na=False, na_values=[""])
+    if "description" not in df.columns and "raw_description" in df.columns:
+        # Older processor output kept the bank text in `raw_description`.
+        df = df.rename(columns={"raw_description": "description"})
     if "description" not in df.columns:
         raise ValueError(f"CSV at {csv_path} is missing a 'description' column.")
     df["description"] = df["description"].fillna("").astype(str)
@@ -98,32 +100,25 @@ def load_labeled(df):
 # 1. FEATURES - turn transaction text into numbers an ML model can learn from
 # ---------------------------------------------------------------------------
 
-def vectorize_descriptions(descriptions, max_features=5000):
-    """TODO (we write this): text -> numeric feature matrix.
+def vectorize_descriptions(descriptions, max_features=5000, analyzer="char_wb"):
+    """Text -> numeric feature matrix (Term Frequency-Inverse Document Frequency).
 
-    What to implement:
-        1. from sklearn.feature_extraction.text import TfidfVectorizer
-        2. vectorizer = TfidfVectorizer(
-               lowercase=True,
-               ngram_range=(1, 2),      # single words + 2-word phrases
-               max_features=max_features,
-           )
-        3. X = vectorizer.fit_transform(descriptions)
-        4. return X, vectorizer
+    Uses CHARACTER n-grams (3-5 letters, within word boundaries) instead of
+    whole words: raw bank text is full of store numbers, abbreviations and
+    truncated names ("WAL-MART #1234", "WM SUPERCENTER"), and character
+    pieces still match across those variations. Word n-grams are available
+    with analyzer="word" for comparison.
 
-    Return the fitted vectorizer too, because we MUST reuse it to
+    Returns (X, vectorizer). Return the fitted vectorizer too, because we MUST reuse it to
     transform new transactions later (never fit again on new data).
-
-    Extra features we can add once this works:
-        - the sign of `amount` (negative = spending, positive = income)
-        - `bank` / `account` type (checking vs savings vs credit card)
-        - day of week / month from `date`
-        - optional: pretrained embeddings (sentence-transformers)
-          instead of tf-idf bag of words
     """
-    raise NotImplementedError(
-        "TODO: implement vectorize_descriptions() - steps in the docstring."
-    )
+    from sklearn.feature_extraction.text import TfidfVectorizer
+
+    ngram_range = (3, 5) if analyzer in ("char", "char_wb") else (1, 2)
+    vectorizer = TfidfVectorizer(lowercase=True, analyzer=analyzer,
+                                 ngram_range=ngram_range, max_features=max_features)
+    X = vectorizer.fit_transform(pd.Series(descriptions).fillna("").astype(str))
+    return X, vectorizer
 
 
 # ---------------------------------------------------------------------------
@@ -131,15 +126,12 @@ def vectorize_descriptions(descriptions, max_features=5000):
 # ---------------------------------------------------------------------------
 
 def train_knn(X_train, y_train, n_neighbors=5, metric="cosine"):
-    """TODO (we write this): k-nearest-neighbors classifier.
+    """k-nearest-neighbors classifier (cosine distance suits TF-IDF vectors)."""
+    from sklearn.neighbors import KNeighborsClassifier
 
-    What to implement:
-        from sklearn.neighbors import KNeighborsClassifier
-        model = KNeighborsClassifier(n_neighbors=n_neighbors, metric=metric)
-        model.fit(X_train, y_train)
-        return model
-    """
-    raise NotImplementedError("TODO: implement train_knn()")
+    model = KNeighborsClassifier(n_neighbors=n_neighbors, metric=metric)
+    model.fit(X_train, y_train)
+    return model
 
 
 def train_random_forest(X_train, y_train, n_estimators=200, max_depth=None):
@@ -337,28 +329,48 @@ def train_and_categorize(csv_path=CSV_PATH,
     raise NotImplementedError("TODO: implement train_and_categorize()")
 
 
-def baseline_most_common(df, target="main_category"):
-    """TODO (we write this): the most boring baseline.
+# ---------------------------------------------------------------------------
+# 5. FIRST RESULT - baseline + KNN as fit_predict functions
+#    Each takes (train_df, test_df) and returns predictions for test_df.
+#    All fitting uses train_df only, so they plug straight into
+#    within_person_cv() and cross_person_experiment() without leakage.
+# ---------------------------------------------------------------------------
 
-    Always predict the most frequent label in the training rows and
-    return the accuracy it gets on held-out rows. If our ML can't beat
-    this, we know something is off.
+def baseline_most_common(train, test, target="main_category"):
+    """Always predict the most frequent label in the training rows."""
+    return [train[target].value_counts().idxmax()] * len(test)
+
+
+def knn_tfidf(train, test, target="main_category", n_neighbors=5):
+    """Term Frequency-Inverse Document Frequency (fit on train only) + KNN."""
+    X_train, vectorizer = vectorize_descriptions(train["description"])
+    model = train_knn(X_train, train[target], n_neighbors=n_neighbors)
+    return model.predict(vectorizer.transform(test["description"].astype(str)))
+
+
+FIRST_RESULT_MODELS = {
+    "most_common": baseline_most_common,
+    "knn_tfidf": knn_tfidf,
+}
+
+
+def cross_person_experiment(train_df, test_df, models=None, target="main_category"):
+    """Train on one person's labeled rows, evaluate on the other's.
+
+    Call it both ways (A->B and B->A). Returns one row per model with
+    accuracy and macro-F1, plus the share of test rows whose exact
+    description also appears in training (familiar descriptions).
     """
-    raise NotImplementedError("TODO: implement baseline_most_common()")
-
-
-def cross_person_experiment(csv_path=CSV_PATH):
-    """TODO (we write this): train on person A, test on person B.
-
-    Only possible after we add a `person` column (A or B) to the CSV.
-
-    Do BOTH directions:
-        - train on A's labeled rows, evaluate on B's labeled rows
-        - train on B's labeled rows, evaluate on A's labeled rows
-    Compare each against baseline_most_common() and against training +
-    testing within the same person. This answers our project question.
-    """
-    raise NotImplementedError("TODO: implement cross_person_experiment()")
+    models = models or FIRST_RESULT_MODELS
+    train, test = load_labeled(train_df), load_labeled(test_df)
+    seen = test["description"].str.lower().isin(set(train["description"].str.lower()))
+    rows = []
+    for name, fit_predict in models.items():
+        scores = evaluate_categorizer(test[target], fit_predict(train, test), verbose=False)
+        rows.append({"model": name, "accuracy": scores["accuracy"],
+                     "macro_f1": scores["macro_f1"], "n_test": len(test),
+                     "familiar_descriptions": seen.mean()})
+    return pd.DataFrame(rows)
 
 
 if __name__ == "__main__":

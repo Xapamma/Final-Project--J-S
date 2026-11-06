@@ -64,30 +64,39 @@ def run_checks(person, labeled_csv=None):
     raw_files = raw_file_summary(person)
     raw_total = int(raw_files["raw_rows"].sum()) if not raw_files.empty else 0
 
+    has_raw = "raw_description" in df.columns
+    built_by = ("`ml/bank_statment_processor.py`" if has_raw
+                else "the Streamlit app export (no `raw_description`, so cleaning-step counts are unavailable)")
     lines = [f"# Data quality checks - {person}", "",
-             f"Source: `{labeled_csv or processed_csv}` (built by `ml/bank_statment_processor.py`)", ""]
+             f"Source: `{labeled_csv or processed_csv}` (built by {built_by})", ""]
 
     # 1. Sources
-    lines += ["## Source files", "", _md_table(raw_files.set_index("file")) if not raw_files.empty else "(none)", ""]
+    lines += ["## Source files", "", _md_table(raw_files.set_index("file")) if not raw_files.empty else "(raw files not available on this machine)", ""]
 
-    # 2. Rows changed by each cleaning step
-    raw_desc = df["description"].fillna("").astype(str)
-    noise_left = raw_desc.str.lower().apply(lambda x: any(n in x for n in NOISE_PATTERNS)).sum()
-    steps = pd.DataFrame([
-        {"step": "raw rows loaded", "rows": raw_total},
-        {"step": "dropped by noise/transfer filter", "rows": raw_total - len(df)},
-        {"step": "rows after processing", "rows": len(df)},
-        {"step": "noise-pattern rows remaining (should be 0)", "rows": int(noise_left)},
-    ]).set_index("step")
-    lines += ["## Cleaning steps", "", _md_table(steps), ""]
+    # 2. Rows changed by each cleaning step (needs raw files + raw_description)
+    if has_raw and raw_total:
+        raw_desc = df["raw_description"].fillna("").astype(str)
+        noise_left = raw_desc.str.lower().apply(lambda x: any(n in x for n in NOISE_PATTERNS)).sum()
+        desc_changed = (raw_desc != df["description"].fillna("").astype(str)).sum()
+        steps = pd.DataFrame([
+            {"step": "raw rows loaded", "rows": raw_total},
+            {"step": "dropped by noise/transfer filter (and approved duplicate removal)", "rows": raw_total - len(df)},
+            {"step": "rows after cleaning", "rows": len(df)},
+            {"step": "descriptions rewritten by clean_description + smart_title", "rows": int(desc_changed)},
+            {"step": "noise-pattern rows remaining (should be 0)", "rows": int(noise_left)},
+        ]).set_index("step")
+        lines += ["## Cleaning steps", "", _md_table(steps), ""]
+    else:
+        lines += ["## Cleaning steps", "", "Not available: needs the raw bank files and the processor's `raw_description` column.", ""]
 
     # 3. Basic quality
-    dup_cols = ["date", "description", "amount", "bank", "account"]
+    text_col = "raw_description" if has_raw else "description"
+    dup_cols = ["date", text_col, "amount", "bank", "account"]
     dups = int(df.duplicated(subset=dup_cols).sum())
     missing = df.isna().sum().rename("missing").to_frame()
     lines += ["## Duplicates and missing values", "",
-              f"- Possible duplicates (same date, description, amount, bank, account): **{dups}** "
-              "(not removed automatically - could be real repeat purchases)", "",
+              f"- Possible duplicates (same date, {text_col.replace('_', ' ')}, amount, bank, account): **{dups}** "
+              "(could be real repeat purchases; the processor flags these for review)", "",
               _md_table(missing), ""]
 
     # 4. Coverage / date gaps

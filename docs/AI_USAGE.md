@@ -59,7 +59,7 @@ above before we rely on it:
 1. **Implementing the ML methods in `ml_models.py`.** We will likely ask AI to
    help write the scikit-learn code (vectorizer, KNN, Random Forest, ANN, train/test
    split, confusion matrix). Rule: we approve each function, run the tests, and
-   sanity-check results against our two baselines before trusting any number.
+   sanity-check results against our most-common baseline before trusting any number.
    The final code stays attributed to both of us, and the AI part is disclosed here.
 2. **Debugging and refactoring** (tracebacks, pandas/Streamlit quirks). Small
    entries get added as one line to the log.

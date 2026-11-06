@@ -29,7 +29,8 @@ Then follow [SETUP.md](SETUP.md): build the clean dataset headlessly with
 |------|----------|
 | `dashboard.py`, `app.py`, `pages/` | Streamlit labeling/dashboard app |
 | `dashboard/` | Shared app modules: import, export/validation, analytics, description cleaning, search, budget export, bank profiles |
-| `ml/` | Headless dataset pipeline (`bank_statment_processor.py`) + ML experiments (`ml_models.py`) |
+| `ml/` | Headless dataset pipeline (`bank_statment_processor.py`) + ML experiments (`ml_models.py`, `first_result.py`) |
+| `results/` | Generated outputs: data-quality checks and model results (category names and counts only, no transactions) |
 | `docs/` | `project-plan.md`, `report.md`, `CATEGORY_GUIDE.md`, `AI_USAGE.md` |
 | `tests/` | Unit tests |
 | `.data/` | Private raw bank CSVs (gitignored) |
@@ -48,29 +49,31 @@ Full plan: [docs/project-plan.md](docs/project-plan.md)
 
 ### 2026-11-05 – Data and reference result
 
-We collected and labeled transaction data from Jillian's Bank of America
-credit card and Savanna's Goldenwest, SoFi, and Capital One accounts. The raw
-bank exports remain private in the gitignored `.data/` directory. The current
-cleaned samples contain 393 Jillian transactions and 998 Savanna transactions,
-with no missing values or month gaps in the reported coverage checks. Category
-labels follow the shared [category guide](docs/CATEGORY_GUIDE.md).
+**Data.** Each of us exported our own transactions as CSVs from our banks' websites. Jillian's data is one Bank of America credit card (Dec 2024 to Dec 2025, 393 transactions). Savanna's comes from 4 banks and 7 accounts in 2025 (998 transactions). Both sets are fully hand-labeled using [docs/CATEGORY_GUIDE.md](docs/CATEGORY_GUIDE.md). [`ml/bank_statment_processor.py`](ml/bank_statment_processor.py) converts every bank's layout into one shared format. Raw statements (in `.data/`) and the labeled CSVs are gitignored and never committed. Categories are unbalanced (Food & Dining is 62% of Jillian's rows and 35% of Savanna's), so we report macro F1 alongside accuracy. Data checks ([`ml/quality_checks.py`](ml/quality_checks.py)): [Jillian](results/data_quality_jillian.md) and [Savanna](results/data_quality_savanna.md). Full checkpoint write-up: [docs/data_and_reference_result.md](docs/data_and_reference_result.md).
 
-The headless processor standardizes bank formats, makes spending negative and
-income positive, preserves the original bank descriptions, and leaves
-categories blank for labeling:
+Rebuild the unlabeled dataset (standardizes bank formats, spending negative and income positive, categories left blank for labeling):
 
 ```bash
 uv sync
 uv run python -m ml.bank_statment_processor
 ```
 
-Relevant code and supporting output:
+**First result.** We predict `main_category` from the transaction description only (we dropped the merchant column). The baseline always predicts the most common training category. We compare it with KNN (k = 5, cosine distance) on character-level TF-IDF (term frequency–inverse document frequency) features. Within-person scores use 5-fold GroupKFold grouped by description, so test descriptions never appear in training. Cross-person scores train on one person and test on the other.
 
-- [ml/bank_statment_processor.py](ml/bank_statment_processor.py)
-- [ml/quality_checks.py](ml/quality_checks.py)
-- [Jillian data-quality report](results/data_quality_jillian.md)
-- [data and reference result](docs/data_and_reference_result.md)
+| Setting | Baseline acc / macro F1 | KNN acc / macro F1 |
+|---|---|---|
+| Jillian within-person | 0.624 / 0.101 | 0.672 / 0.361 |
+| Savanna within-person | 0.348 / 0.042 | 0.599 / 0.487 |
+| Train Savanna → test Jillian | 0.623 / 0.077 | 0.578 / 0.270 |
+| Train Jillian → test Savanna | 0.348 / 0.040 | 0.376 / 0.118 |
 
-The first reference-model result is still pending. The planned baseline is a
-classifier that always predicts the most common category in Savanna's training
-data, followed by comparisons with KNN, Random Forest, and a neural network.
+- Code: [`ml/first_result.py`](ml/first_result.py) (runner) and [`ml/ml_models.py`](ml/ml_models.py) (baseline, KNN, cross-validation, cross-person functions). Tests: [`tests/test_first_result.py`](tests/test_first_result.py)
+- Output, with per-category scores and confusion matrices: [results/first_result.md](results/first_result.md)
+- Rerun from the project root (the labeled CSVs are private):
+  ```bash
+  uv run python -m ml.first_result --jillian jillian_transactions_labeled.csv --savanna savanna_transactions.csv
+  ```
+
+**What it suggests.** Within each person, KNN clearly beats the baseline on macro F1, so it learns the smaller categories. Most of its errors involve Transportation: 45 of Jillian's Food & Dining rows and 83 of Savanna's Savings & Investments rows were predicted as Transportation. Cross-person transfer is much weaker. No description appears in both people's data, and Jillian's data has no Gifts & Donations, Housing & Bills, or Savings & Investments rows, which make up 19% of Savanna's.
+
+**Next.** Inspect the Transportation errors (features vs. labeling). Try distance-weighted KNN, tuning k, and word vs. character n-grams. Try logistic regression. Align our category sets. Add Jillian's checking/debit statements so both people cover the same kinds of transactions.
