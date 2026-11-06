@@ -2,11 +2,10 @@
 
 **STAT 486 Fall 2026** · Savanna McLelland & Jillian Baker
 **Route:** C – Build a dataset and use it in a reproducible ML pipeline
-**Date updated:** October 27, 2026
+**Date updated:** November 5, 2026
 
-> This is a living report. Results sections are placeholders until our first
-> runnable ML results (target: Nov 5, see § 8). All numbers we add must come
-> from actual runs, not estimates.
+> This is a living report. All reported numbers come from the first runnable
+> experiment on our private labeled CSVs.
 
 ## 1. Project question
 
@@ -103,18 +102,19 @@ accounts across four banks. Savanna's raw processor cleaning counts were not
 available for this checkpoint, and shared-sample labeling agreement was not
 measured.
 
-### 4.3 Model accuracy
+### 4.3 Within-person results
 
 The first runnable result predicts `main_category`; subcategory scores were
-not produced by this run. Values below are within-person mean accuracy across
-five grouped folds. The detailed per-category reports and confusion matrices
-are in [`results/first_result.md`](../results/first_result.md).
+not produced by this run. Values below are mean scores across five grouped
+folds. Grouping by description prevents the same description from appearing
+in both training and test folds. The detailed per-category reports and
+confusion matrices are in [`results/first_result.md`](../results/first_result.md).
 
-| Method | Jillian accuracy | Savanna accuracy | Beats most-common baseline? |
-|---|---|---|---|
-| Baseline: most common | 0.624 | 0.348 | — |
-| TF-IDF KNN | 0.483 | 0.505 | Jillian: No; Savanna: Yes |
-| Embedding KNN | 0.603 | 0.559 | Jillian: No; Savanna: Yes |
+| Method | Jillian accuracy | Jillian macro-F1 | Savanna accuracy | Savanna macro-F1 |
+|---|---:|---:|---:|---:|
+| Baseline: most common | 0.624 | 0.101 | 0.348 | 0.042 |
+| TF-IDF KNN | 0.483 | 0.315 | 0.505 | 0.440 |
+| Embedding KNN | 0.603 | 0.314 | 0.559 | 0.457 |
 
 ### 4.4 Cross-person
 
@@ -122,10 +122,14 @@ The first runnable result evaluates `main_category`; subcategory accuracy was
 not produced. The values below come from the cross-person experiment in
 [`results/first_result.md`](../results/first_result.md).
 
-| Trained on | Tested on | Most-common accuracy | TF-IDF KNN accuracy | Embedding KNN accuracy | Embedding macro-F1 |
-|---|---|---:|---:|---:|---:|
-| Savanna | Jillian | 0.623 | 0.384 | 0.496 | 0.135 |
-| Jillian | Savanna | 0.348 | 0.185 | 0.274 | 0.089 |
+| Trained on | Tested on | Method | Accuracy | Macro-F1 |
+|---|---|---|---:|---:|
+| Savanna | Jillian | Most-common baseline | 0.623 | 0.077 |
+| Savanna | Jillian | TF-IDF KNN | 0.384 | 0.151 |
+| Savanna | Jillian | Embedding KNN | 0.496 | 0.135 |
+| Jillian | Savanna | Most-common baseline | 0.348 | 0.040 |
+| Jillian | Savanna | TF-IDF KNN | 0.185 | 0.064 |
+| Jillian | Savanna | Embedding KNN | 0.274 | 0.089 |
 
 ### 4.5 Errors & confusion
 
@@ -134,7 +138,12 @@ cross-person transfer from Savanna to Jillian (0.496 vs. 0.384), but not for
 Jillian within-person (0.603 vs. 0.483) or transfer from Jillian to Savanna
 (0.274 vs. 0.185). Macro-F1 shows the same general pattern while remaining
 well below accuracy because the category distributions are highly imbalanced.
-The detailed confusion matrices and per-category scores are in
+Within-person errors are concentrated in a few category pairs: Jillian's
+embedding model most often confused Food & Dining with Transportation, while
+Savanna's largest confusion was Savings & Investments predicted as Food &
+Dining. These errors should be checked for shared location or merchant text
+and for inconsistent labeling before changing the model. The detailed
+confusion matrices and per-category scores are in
 [`results/first_result.md`](../results/first_result.md).
 
 ## 5. Discussion & limitations
@@ -175,15 +184,19 @@ in [`results/first_result.md`](../results/first_result.md).
 * Added docs: `SETUP.md`, `CATEGORY_GUIDE.md`, and this report.
 
 ### Nov 5 – First runnable ML result
-* Load the first labeled batches and report basic quality checks.
+* Loaded 393 Jillian and 998 Savanna labeled transactions and reported basic
+  quality checks.
 * Compare the most-common baseline, embedding-plus-amount KNN, and the
-  additional TF-IDF-plus-amount KNN comparison.
+  additional TF-IDF-plus-amount KNN comparison within-person and
+  cross-person.
 
 ## 8. Next steps (checklist)
 
-- [ ] Label transactions (split between us) + fill `CATEGORY_GUIDE.md` § 4.
+- [x] Label the first transaction batches and fill the category vocabulary.
 - [x] Add character TF-IDF KNN and embedding-plus-amount KNN comparisons.
 - [ ] Implement and evaluate Random Forest and ANN/MLP comparisons.
-- [ ] Run `cross_person_experiment()` and compare with the baseline.
-- [ ] Fill in § 4 tables and the confusion matrix from real runs.
+- [x] Run `cross_person_experiment()` and compare with the baseline.
+- [x] Fill in § 4 tables and link the detailed confusion matrices.
+- [ ] Inspect the largest confusion pairs for feature or labeling issues.
+- [ ] Add Jillian's checking/debit statements, if available.
 - [ ] Confirm privacy and reproducibility expectations with the instructor.

@@ -12,11 +12,11 @@ Use any prompts that help you describe your progress. Add a dated entry to the r
 
 ### Where did the data come from, and how did you obtain or prepare them?
 
-Each of us exported our own transaction history as CSVs from our banks' websites: Jillian's is one Bank of America credit card (Dec 2024 to Dec 2025), and Savanna's comes from Savanna’s credit and debit cards from Goldenwest, Sofi, Capital one. The raw files stay in a gitignored `.data/` folder and are never committed. `ml/bank_statment_processor.py` converts every bank's layout into one shared format and makes signs consistent (spending negative, money in positive). We then label each transaction's main and sub category by hand using `docs/CATEGORY_GUIDE.md` (rerun: `uv sync`, then `uv run python -m ml.bank_statment_processor`).
+Each of us exported our own transaction history as CSVs from our banks' websites: Jillian's is one Bank of America credit card (Dec 2024 to Dec 2025), and Savanna's comes from her credit and debit cards from Goldenwest, SoFi, and Capital One. The raw files stay in a gitignored `.data/` folder and are never committed. `ml/bank_statment_processor.py` converts every bank's layout into one shared format and makes signs consistent (spending negative, money in positive). We then label each transaction's main and sub category by hand using `docs/CATEGORY_GUIDE.md` (rerun: `uv sync`, then `uv run python -m ml.bank_statment_processor`).
 
 ### What data are available to your team now?
 
-We currently have Jillian's 393 Bank of America credit-card transactions all labeled, and Savanna's 999 transactions from 4 banks of them labeled so far.
+We currently have Jillian's 393 Bank of America credit-card transactions all labeled, and Savanna's 998 transactions from 4 banks all labeled.
 
 ### What remains to be collected or cleaned?
 
@@ -83,7 +83,7 @@ For our baseline, we use a model that always predicts the most common
 category in the training data. The first-result runner evaluates sentence-
 embedding KNN with weighted amounts and a TF-IDF-plus-amount KNN comparison.
 Current aggregate scores are generated from private labeled CSVs and are
-documented in `results/first_result.md` when available.
+documented in `results/first_result.md`.
 
 ### Where are the code and output? Link them, and include the command needed to rerun the result if available.
 
