@@ -47,9 +47,16 @@ Raw data stays private; a made-up sample will support reproduction. Backup scope
 
 Full plan: [docs/project-plan.md](docs/project-plan.md)
 
-### 2026-11-05 – Data and first result
+### 2026-11-05 – Data and reference result
 
-**Data.** Each of us exported our own transactions as CSVs from our banks' websites. Jillian's data is one Bank of America credit card (Dec 2024 to Dec 2025, 393 transactions). Savanna's comes from 4 banks and 7 accounts in 2025 (998 transactions). Both sets are fully hand-labeled using [docs/CATEGORY_GUIDE.md](docs/CATEGORY_GUIDE.md). [`ml/bank_statment_processor.py`](ml/bank_statment_processor.py) converts every bank's layout into one shared format. Raw statements (in `.data/`) and the labeled CSVs are gitignored and never committed. Categories are unbalanced (Food & Dining is 62% of Jillian's rows and 35% of Savanna's), so we report macro F1 alongside accuracy. Data checks: [Jillian](results/data_quality_jillian.md) and [Savanna](results/data_quality_savanna.md).
+**Data.** Each of us exported our own transactions as CSVs from our banks' websites. Jillian's data is one Bank of America credit card (Dec 2024 to Dec 2025, 393 transactions). Savanna's comes from 4 banks and 7 accounts in 2025 (998 transactions). Both sets are fully hand-labeled using [docs/CATEGORY_GUIDE.md](docs/CATEGORY_GUIDE.md). [`ml/bank_statment_processor.py`](ml/bank_statment_processor.py) converts every bank's layout into one shared format. Raw statements (in `.data/`) and the labeled CSVs are gitignored and never committed. Categories are unbalanced (Food & Dining is 62% of Jillian's rows and 35% of Savanna's), so we report macro F1 alongside accuracy. Data checks ([`ml/quality_checks.py`](ml/quality_checks.py)): [Jillian](results/data_quality_jillian.md) and [Savanna](results/data_quality_savanna.md). Full checkpoint write-up: [docs/data_and_reference_result.md](docs/data_and_reference_result.md).
+
+Rebuild the unlabeled dataset (standardizes bank formats, spending negative and income positive, categories left blank for labeling):
+
+```bash
+uv sync
+uv run python -m ml.bank_statment_processor
+```
 
 **First result.** We predict `main_category` from the transaction description only (we dropped the merchant column). The baseline always predicts the most common training category. We compare it with KNN (k = 5, cosine distance) on character-level TF-IDF (term frequency–inverse document frequency) features. Within-person scores use 5-fold GroupKFold grouped by description, so test descriptions never appear in training. Cross-person scores train on one person and test on the other.
 
