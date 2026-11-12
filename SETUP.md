@@ -140,7 +140,7 @@ uv run python -c "from ml.ml_models import cross_person_experiment; cross_person
 
 4. Run the first-result experiment. It writes only aggregate scores,
    category-level metrics, and confusion matrices to
-   `results/first_result.md`; it does not write descriptions or amounts:
+   `results/first_result_nov05.md`; it does not write descriptions or amounts:
 
    **PowerShell:**
 

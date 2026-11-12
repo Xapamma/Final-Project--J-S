@@ -83,12 +83,12 @@ For our baseline, we use a model that always predicts the most common
 category in the training data. The first-result runner evaluates sentence-
 embedding KNN with weighted amounts and a TF-IDF-plus-amount KNN comparison.
 Current aggregate scores are generated from private labeled CSVs and are
-documented in `results/first_result.md`.
+documented in `results/first_result_nov05.md`.
 
 ### Where are the code and output? Link them, and include the command needed to rerun the result if available.
 
 The runner is `ml/first_result.py`, the model implementations are in
-`ml/ml_models.py`, and the output is `results/first_result.md`. Run:
+`ml/ml_models.py`, and the output is `results/first_result_nov05.md`. Run:
 `uv run python -m ml.first_result --jillian <csv> --savanna <csv>`.
 
 ### What did this first result suggest, and what will you try next?
@@ -116,7 +116,7 @@ compare additional feature and KNN settings; and evaluate the planned Random
 Forest and ANN/MLP models. We also need to complete the made-up reproducible
 sample and, if the project scope permits, evaluate subcategory predictions and
 labeling agreement on a shared sample. The complete scores and confusion
-matrices are in [`results/first_result.md`](../results/first_result.md), and
+matrices are in [`results/first_result_nov05.md`](../results/first_result_nov05.md), and
 the data-quality checks are in
 [`results/data_quality_jillian.md`](../results/data_quality_jillian.md) and
 [`results/data_quality_savanna.md`](../results/data_quality_savanna.md).

@@ -142,7 +142,7 @@ def main():
 
     lines = ["# Working investigation: confusion pairs and TF-IDF vs embeddings", "",
              "Rerun: `uv run python -m ml.confusion_analysis --jillian <csv> --savanna <csv>`. "
-             "`exact` groups GroupKFold folds by the exact description (as in first_result.md); "
+             "`exact` groups GroupKFold folds by the exact description (as in first_result_nov05.md); "
              "`normalized` groups by the description with digits and punctuation removed, so "
              "rows that differ only by an ID, date, or confirmation number stay in the same fold.", ""]
     details = []

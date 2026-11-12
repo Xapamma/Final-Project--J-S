@@ -76,7 +76,7 @@ person and test on the other. The checked-in result table below contains the cur
 | Train Jillian → test Savanna | 0.348 | 0.185 | 0.274 |
 
 - Code: [`ml/first_result.py`](ml/first_result.py) (runner) and [`ml/ml_models.py`](ml/ml_models.py) (baseline, KNN, cross-validation, cross-person functions). Tests: [`tests/test_first_result.py`](tests/test_first_result.py)
-- Output, with per-category scores and confusion matrices: [results/first_result.md](results/first_result.md)
+- Output, with per-category scores and confusion matrices: [results/first_result_nov05.md](results/first_result_nov05.md)
 - Rerun from the project root (the labeled CSVs are private):
   ```bash
   uv run python -m ml.first_result --jillian jillian_transactions_labeled.csv --savanna savanna_transactions.csv
@@ -113,7 +113,7 @@ Quality checks ([results/data_quality_jillian_nov12.md](results/data_quality_jil
 | Savanna: TF-IDF KNN | 0.527 | 0.330 |
 | Savanna: embedding KNN | **0.596** | 0.330 |
 
-Cross-person (embedding KNN, accuracy / macro F1): train Savanna → test Jillian 0.531 / 0.193 (baseline 0.534 / 0.070); train Jillian → test Savanna 0.307 / 0.105 (baseline 0.348 / 0.040). Full output: [results/first_result_nov12.md](results/first_result_nov12.md) and [results/confusion_analysis.md](results/confusion_analysis.md). The Nov 5 files ([results/first_result.md](results/first_result.md), [results/data_quality_jillian.md](results/data_quality_jillian.md)) are kept as submitted; their numbers differ because they use Jillian's 393 credit-card rows and exact-description grouping.
+Cross-person (embedding KNN, accuracy / macro F1): train Savanna → test Jillian 0.531 / 0.193 (baseline 0.534 / 0.070); train Jillian → test Savanna 0.307 / 0.105 (baseline 0.348 / 0.040). Full output: [results/first_result_nov12.md](results/first_result_nov12.md) and [results/confusion_analysis.md](results/confusion_analysis.md). The Nov 5 files ([results/first_result_nov05.md](results/first_result_nov05.md), [results/data_quality_jillian.md](results/data_quality_jillian.md)) are kept as submitted; their numbers differ because they use Jillian's 393 credit-card rows and exact-description grouping.
 
 **TF-IDF vs. sentence embeddings.** Embeddings are the better default. They have higher accuracy for both of us and win 4 of Jillian's 10 categories (TF-IDF wins 1) and 7 of Savanna's 13 (TF-IDF wins 4). The clearest case is Education for Jillian (F1 0.59 vs 0.34): TF-IDF sends 72 Food & Dining rows to Education, spread across ordinary merchants (Venmo 14, WinCo 7, Chick-fil-A 6, Trader Joe's 5). Because no single merchant explains it, this is a general TF-IDF weakness, not one confusing merchant. For Savanna, macro F1 is tied at 0.330. TF-IDF still does better on Shopping, Health, Travel, and Gifts, and it makes far fewer Shopping ↔ Food & Dining errors (12 vs 60). So embeddings help most on large categories, not the small ones.
 

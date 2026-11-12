@@ -108,7 +108,7 @@ The first runnable result predicts `main_category`; subcategory scores were
 not produced by this run. Values below are mean scores across five grouped
 folds. Grouping by description prevents the same description from appearing
 in both training and test folds. The detailed per-category reports and
-confusion matrices are in [`results/first_result.md`](../results/first_result.md).
+confusion matrices are in [`results/first_result_nov05.md`](../results/first_result_nov05.md).
 
 | Method | Jillian accuracy | Jillian macro-F1 | Savanna accuracy | Savanna macro-F1 |
 |---|---:|---:|---:|---:|
@@ -120,7 +120,7 @@ confusion matrices are in [`results/first_result.md`](../results/first_result.md
 
 The first runnable result evaluates `main_category`; subcategory accuracy was
 not produced. The values below come from the cross-person experiment in
-[`results/first_result.md`](../results/first_result.md).
+[`results/first_result_nov05.md`](../results/first_result_nov05.md).
 
 | Trained on | Tested on | Method | Accuracy | Macro-F1 |
 |---|---|---|---:|---:|
@@ -144,7 +144,7 @@ Savanna's largest confusion was Savings & Investments predicted as Food &
 Dining. These errors should be checked for shared location or merchant text
 and for inconsistent labeling before changing the model. The detailed
 confusion matrices and per-category scores are in
-[`results/first_result.md`](../results/first_result.md).
+[`results/first_result_nov05.md`](../results/first_result_nov05.md).
 
 ## 5. Discussion & limitations
 
@@ -163,7 +163,7 @@ label distributions limit transfer. The experiment evaluates only
 `main_category`; subcategory performance, shared-sample agreement, and the
 planned Random Forest and ANN/MLP comparisons remain outside this first
 result. The detailed category errors and confusion matrices are documented
-in [`results/first_result.md`](../results/first_result.md).
+in [`results/first_result_nov05.md`](../results/first_result_nov05.md).
 
 ## 6. Privacy & reproduction
 

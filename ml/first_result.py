@@ -9,7 +9,7 @@ sentence-embedding features.
     2. Cross-person (if both files are given): train on one, test on the
        other, in both directions.
 
-Writes results/first_result.md with scores and confusion matrices. Only
+Writes results/first_result_nov05.md with scores and confusion matrices. Only
 category names and counts are written - no descriptions or amounts.
 
 Run from the project root (point each flag at that person's LABELED csv):
@@ -28,7 +28,7 @@ from ml.ml_models import (FIRST_RESULT_MODELS, cross_person_experiment,
                           within_person_cv)
 
 TARGET = "main_category"
-OUTPUT = os.path.join("results", "first_result.md")
+OUTPUT = os.path.join("results", "first_result_nov05.md")
 
 
 def _table(df):

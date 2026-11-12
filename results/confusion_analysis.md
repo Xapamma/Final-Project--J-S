@@ -1,6 +1,6 @@
 # Working investigation: confusion pairs and TF-IDF vs embeddings
 
-Rerun: `uv run python -m ml.confusion_analysis --jillian <csv> --savanna <csv>`. `exact` groups GroupKFold folds by the exact description (as in first_result.md); `normalized` groups by the description with digits and punctuation removed, so rows that differ only by an ID, date, or confirmation number stay in the same fold.
+Rerun: `uv run python -m ml.confusion_analysis --jillian <csv> --savanna <csv>`. `exact` groups GroupKFold folds by the exact description (as in first_result_nov05.md); `normalized` groups by the description with digits and punctuation removed, so rows that differ only by an ID, date, or confirmation number stay in the same fold.
 
 ## Jillian
 
@@ -90,4 +90,3 @@ Biggest confusion pairs (row counts, normalized grouping):
 | Housing & Bills | Travel & Lodging | 12 | 12 | WEB AUTHORIZED PMT (12) |
 | Housing & Bills | Transfer | 12 | 12 | WEB AUTHORIZED PMT (12) |
 | Shopping & Supplies | Housing & Bills | 21 | 3 | AMAZON MKTPLACE PMTS (1), RC WILLEY HOME (1), LAGOON RFM (1) |
-

@@ -59,9 +59,8 @@ The graded entry is the "2026-11-12 – Working investigation" section of the [R
 
   | Person | Accounts | Dates |
   |---|---|---|
-  | Jillian | Bank of America credit card | 2024-12-05 to 2025-12-03 |
-  | Jillian | Bank of America checking/debit | 2024-12-30 to 2025-12-29 |
-  | Savanna | 4 banks, 7 accounts | 2025 |
+  | Jillian | Bank of America credit card and checking/debit | 2024-12-05 to 2025-12-29 |
+  | Savanna | Capital One credit card; Goldenwest checking, gold account, and money market; SoFi checking and savings; U.S. Bank checking | 2025-01-02 to 2025-12-31 |
 
   Jillian's checking statements were checked against the bank's printed section totals, and all 36 sections matched to the cent. Access limit: this is personal financial data, so nothing raw or labeled is committed.
 
@@ -76,6 +75,13 @@ The graded entry is the "2026-11-12 – Working investigation" section of the [R
   - 1 possible duplicate, kept and flagged.
   - No empty months. The longest gap between transactions is 8 days.
   - Food & Dining is 53% of the rows.
+
+  Savanna's quality checks:
+  - 998 labeled rows across 4 banks and 7 accounts.
+  - 77 possible duplicates, kept and flagged for review.
+  - No missing values.
+  - No empty months. The longest gap between transactions is 4 days.
+  - Food & Dining is 35% of the rows, followed by Savings & Investments at 13%.
 
   Label consistency: we fixed the "Tutition" typo and wrote down labeling decisions in the README. An optional shared-labeling agreement check was offered.
 
@@ -99,7 +105,7 @@ The graded entry is the "2026-11-12 – Working investigation" section of the [R
 
 - **What is uncertain or blocked now, and how will you adjust the scope if needed?**
 
-  Next question: can the amount separate same-merchant cases without hurting other categories? We will tune the amount weight (currently ×25), try log-scaled amounts, and try logistic regression.
+  Next question: Can the amount separate same-merchant cases without hurting other categories? We will tune the amount weight (currently ×25), try log-scaled amounts, and try logistic regression.
 
   Still uncertain:
   - Our category sets differ. Jillian has no Housing & Bills, Savings & Investments, or Gifts & Donations rows.
