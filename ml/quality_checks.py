@@ -41,7 +41,11 @@ def _has_tabulate():
 def raw_file_summary(person):
     """Row counts per raw CSV in .data/<person>/<bank>/ (before any cleaning)."""
     rows = []
-    for path in sorted(glob.glob(os.path.join(DATA_FOLDER, person, "*", "*.csv"))):
+    # Statements with no CSV export are entered by hand into
+    # .data/manual/<person>_*transcribed*.csv and count as raw sources too.
+    paths = sorted(glob.glob(os.path.join(DATA_FOLDER, person, "*", "*.csv")))
+    paths += sorted(glob.glob(os.path.join(DATA_FOLDER, "manual", f"{person}_*transcribed*.csv")))
+    for path in paths:
         raw = pd.read_csv(path)
         raw.columns = raw.columns.str.strip().str.lower()
         date_col = next((c for c in raw.columns if "date" in c), None)
@@ -57,7 +61,7 @@ def raw_file_summary(person):
     return pd.DataFrame(rows)
 
 
-def run_checks(person, labeled_csv=None):
+def run_checks(person, labeled_csv=None, out=None):
     processed_csv = PEOPLE[person]
     df = pd.read_csv(labeled_csv or processed_csv, parse_dates=["date"],
                      keep_default_na=False, na_values=[""])  # "N/A" is a real sub-category
@@ -77,14 +81,17 @@ def run_checks(person, labeled_csv=None):
     if has_raw and raw_total:
         raw_desc = df["raw_description"].fillna("").astype(str)
         noise_left = raw_desc.str.lower().apply(lambda x: any(n in x for n in NOISE_PATTERNS)).sum()
-        desc_changed = (raw_desc != df["description"].fillna("").astype(str)).sum()
-        steps = pd.DataFrame([
+        steps = [
             {"step": "raw rows loaded", "rows": raw_total},
             {"step": "dropped by noise/transfer filter (and approved duplicate removal)", "rows": raw_total - len(df)},
             {"step": "rows after cleaning", "rows": len(df)},
-            {"step": "descriptions rewritten by clean_description + smart_title", "rows": int(desc_changed)},
-            {"step": "noise-pattern rows remaining (should be 0)", "rows": int(noise_left)},
-        ]).set_index("step")
+        ]
+        if "description" in df.columns:  # older processor output also kept a cleaned description
+            desc_changed = (raw_desc != df["description"].fillna("").astype(str)).sum()
+            steps.append({"step": "descriptions rewritten by clean_description + smart_title",
+                          "rows": int(desc_changed)})
+        steps.append({"step": "noise-pattern rows remaining (should be 0)", "rows": int(noise_left)})
+        steps = pd.DataFrame(steps).set_index("step")
         lines += ["## Cleaning steps", "", _md_table(steps), ""]
     else:
         lines += ["## Cleaning steps", "", "Not available: needs the raw bank files and the processor's `raw_description` column.", ""]
@@ -124,11 +131,11 @@ def run_checks(person, labeled_csv=None):
         per_cat["share"] = (per_cat["transactions"] / per_cat["transactions"].sum()).round(3)
         lines += [_md_table(per_cat), "",
                   f"- Distinct sub-categories used: {df.loc[labeled_mask, 'sub_category'].nunique()}",
-                  f"- Distinct descriptions: {df['description'].nunique()}", ""]
+                  f"- Distinct descriptions: {df[text_col].nunique()}", ""]
 
     report = "\n".join(lines)
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-    out = os.path.join(RESULTS_DIR, f"data_quality_{person}.md")
+    out = out or os.path.join(RESULTS_DIR, f"data_quality_{person}.md")
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     with open(out, "w") as f:
         f.write(report)
     print(report)
@@ -140,5 +147,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("person", choices=sorted(PEOPLE))
     parser.add_argument("--labeled", help="labeled CSV to use instead of the processor output")
+    parser.add_argument("--output", help="where to write the report (default results/data_quality_<person>.md)")
     args = parser.parse_args()
-    run_checks(args.person, args.labeled)
+    run_checks(args.person, args.labeled, args.output)

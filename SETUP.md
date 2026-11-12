@@ -103,8 +103,8 @@ uv run python -c "from ml.ml_models import cross_person_experiment; cross_person
 * Known layouts (Goldenwest, SoFi, Capital One) are auto-detected by filename;
   the Streamlit app also has a column-mapping UI for other banks.
 * **Privacy:** raw statements and the labeled dataset are private per our plan —
-  do not commit `.data/` or labeled CSVs. Only the made-up sample (to be added)
-  goes into the repo for reproduction.
+  do not commit `.data/` or labeled CSVs. To reproduce, run the pipeline on
+  your own bank exports.
 
 ### Safe private-data workflow
 

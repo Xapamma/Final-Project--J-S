@@ -168,9 +168,8 @@ in [`results/first_result.md`](../results/first_result.md).
 ## 6. Privacy & reproduction
 
 * Raw statements and the labeled dataset stay private and are **not
-  committed** to GitHub. Only code, docs, and a small made-up sample are
-  committed so the pipeline can be reproduced.
-* Reproduce with the made-up sample: follow `SETUP.md` (install → run the
+  committed** to GitHub. Only code and docs are committed.
+* Reproduce with your own bank exports: follow `SETUP.md` (install → run the
   pipeline → train → evaluate). Anyone can substitute their own bank exports.
 * **AI assistance disclosure:** We used AI tools to help conceive project
   ideas, write and debug code, and polish work we had already created. We

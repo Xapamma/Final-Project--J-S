@@ -108,6 +108,8 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--jillian", help="Jillian's labeled CSV")
     parser.add_argument("--savanna", help="Savanna's labeled CSV")
+    parser.add_argument("--output", default=OUTPUT,
+                        help=f"where to write the markdown report (default {OUTPUT})")
     args = parser.parse_args()
     people = {name: load_dataset(path) for name, path in
               [("Jillian", args.jillian), ("Savanna", args.savanna)] if path}
@@ -130,10 +132,10 @@ def main():
         lines += cross_person_section(b, df_b, a, df_a)
         lines += cross_person_section(a, df_a, b, df_b)
 
-    os.makedirs("results", exist_ok=True)
-    with open(OUTPUT, "w") as f:
+    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
+    with open(args.output, "w") as f:
         f.write("\n".join(lines))
-    print(f"\nSaved -> {OUTPUT}")
+    print(f"\nSaved -> {args.output}")
 
 
 if __name__ == "__main__":
