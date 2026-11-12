@@ -26,7 +26,7 @@ this list (the same list powers the dropdowns in the Streamlit app):
 | Shopping & Supplies | General Retail, Home Improvement, Hobbies, Clothing |
 | Housing & Bills | Mortgage/Rent, Phone, Cable/Internet, Service Fees, Utilities, Maintenance/Repairs |
 | Gifts & Donations | Tithing, Fast Offerings, Hum Aid, Gift |
-| Education | Education, Tutition, Books |
+| Education | Education, Tuition, Books |
 | Entertainment | Gaming, Subscriptions, Recreation, Tickets |
 | Savings & Investments | Dividends, Investments, Emergency Fund, Retirement, House Down Payment |
 | Miscellaneous | Fees & Charges, Other Services |

@@ -76,7 +76,7 @@ CATEGORY_SUBCATEGORIES = {
         "Maintenance/Repairs",
     ],
     "Gifts & Donations": ["Tithing", "Fast Offerings", "Hum Aid", "Gift"],
-    "Education": ["Education", "Tutition", "Books"],
+    "Education": ["Education", "Tuition", "Books"],
     "Entertainment": ["Gaming", "Subscriptions", "Recreation", "Tickets"],
     "Savings & Investments": [
         "Dividends",
