@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from dashboard.cleaning_logic import clean_description_for_matching
 from dashboard.final_export import (
     CATEGORY_LABEL_TO_PAIR,
     CATEGORY_PAIR_TO_LABEL,
@@ -114,13 +113,7 @@ def apply_transaction_category_edits(
             continue
 
         description = str(updated.at[position, "description"])
-        normalized_description = clean_description_for_matching(description)
-        if normalized_description:
-            matching_rows = updated["description"].map(
-                lambda value: clean_description_for_matching(str(value))
-            ).eq(normalized_description)
-        else:
-            matching_rows = updated.index == position
+        matching_rows = updated["description"].eq(description)
 
         if category_changed:
             updated.loc[matching_rows, "main_category"] = main_category

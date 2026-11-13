@@ -21,7 +21,7 @@ writes one headless dataset per person.
 | Path | Contents |
 |------|----------|
 | `dashboard.py`, `app.py`, `pages/` | The Streamlit app (Home / Process statements / Overview / Analytics / Budget) |
-| `dashboard/` | The app's shared modules: import, export/validation, analytics, description cleaning, fuzzy search, budget PDF/Excel export, bank layout profiles |
+| `dashboard/` | The app's shared modules: import, export/validation, analytics, fuzzy search, budget PDF/Excel export, bank layout profiles |
 | `ml/` | Headless dataset builder (`bank_statment_processor.py`) and ML experiments (`ml_models.py`) |
 | `docs/` | `project-plan.md`, `report.md`, `CATEGORY_GUIDE.md` |
 | `tests/` | Unit tests for the import/export pipeline |

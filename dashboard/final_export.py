@@ -25,7 +25,6 @@ from typing import Mapping
 
 import pandas as pd
 
-from dashboard.cleaning_logic import clean_description_for_matching, smart_title
 from dashboard.transaction_import import STANDARD_COLUMNS
 
 

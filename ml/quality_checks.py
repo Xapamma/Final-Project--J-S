@@ -6,7 +6,7 @@ Data-checkpoint quality checks for one person's processed transactions.
 Reports ONLY aggregate numbers (no descriptions), so the output file is safe
 to commit:
     - rows per source file / bank / account, and date range
-    - rows changed by each cleaning step (noise filter, description cleaning)
+    - rows changed by the noise filter
     - possible duplicates, missing values, date gaps
     - transactions per main category (labeled vs. unlabeled)
 
@@ -70,14 +70,14 @@ def run_checks(person, labeled_csv=None, out=None):
 
     has_raw = "raw_description" in df.columns
     built_by = ("`ml/bank_statment_processor.py`" if has_raw
-                else "the Streamlit app export (no `raw_description`, so cleaning-step counts are unavailable)")
+                else "the Streamlit app export (no `raw_description`, so source-step counts are unavailable)")
     lines = [f"# Data quality checks - {person}", "",
              f"Source: `{labeled_csv or processed_csv}` (built by {built_by})", ""]
 
     # 1. Sources
     lines += ["## Source files", "", _md_table(raw_files.set_index("file")) if not raw_files.empty else "(raw files not available on this machine)", ""]
 
-    # 2. Rows changed by each cleaning step (needs raw files + raw_description)
+    # 2. Rows changed by the noise filter (needs raw files + raw_description)
     if has_raw and raw_total:
         raw_desc = df["raw_description"].fillna("").astype(str)
         noise_left = raw_desc.str.lower().apply(lambda x: any(n in x for n in NOISE_PATTERNS)).sum()
@@ -86,10 +86,6 @@ def run_checks(person, labeled_csv=None, out=None):
             {"step": "dropped by noise/transfer filter (and approved duplicate removal)", "rows": raw_total - len(df)},
             {"step": "rows after cleaning", "rows": len(df)},
         ]
-        if "description" in df.columns:  # older processor output also kept a cleaned description
-            desc_changed = (raw_desc != df["description"].fillna("").astype(str)).sum()
-            steps.append({"step": "descriptions rewritten by clean_description + smart_title",
-                          "rows": int(desc_changed)})
         steps.append({"step": "noise-pattern rows remaining (should be 0)", "rows": int(noise_left)})
         steps = pd.DataFrame(steps).set_index("step")
         lines += ["## Cleaning steps", "", _md_table(steps), ""]

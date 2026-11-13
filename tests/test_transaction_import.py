@@ -14,7 +14,6 @@ from pathlib import Path
 import pandas as pd
 
 from dashboard.bank_profiles import load_bank_profiles
-from dashboard.cleaning_logic import clean_description_for_matching, smart_title
 from dashboard.fuzzy_search import fuzzy_match_indices
 from dashboard.transaction_import import (
     STANDARD_COLUMNS,
@@ -248,11 +247,6 @@ class DecategorizedExportTests(unittest.TestCase):
         # No General Spending fallback in the vocabulary, and no rule
         # functions in the modules the dashboard depends on.
         self.assertNotIn("General Spending", FINAL_MAIN_CATEGORY_OPTIONS)
-        import dashboard.cleaning_logic as cleaning
-        self.assertFalse(hasattr(cleaning, "add_categories"))
-        self.assertFalse(hasattr(cleaning, "description_map"))
-        self.assertFalse(hasattr(cleaning, "sub_category_map"))
-        self.assertFalse(hasattr(cleaning, "category_hierarchy"))
 
     def test_merchant_and_category_caches_are_gone(self):
         import dashboard.final_export as export
@@ -440,15 +434,6 @@ class AnalyticsHelperTests(unittest.TestCase):
         prepared = prepare_analytics_transactions(self.export_rows())
         self.assertEqual(spending_for_budget_category(prepared, "Food & Dining"), 12.5)
         self.assertEqual(income_for_budget_category(prepared, "Income"), 1000.0)
-
-    def test_cleaning_helper_alias_matches_new_name(self):
-        from dashboard import cleaning_logic as cleaning_module
-        self.assertEqual(
-            clean_description_for_matching("WAL-MART #1234 UT"),
-            cleaning_module.clean_description("WAL-MART #1234 UT"),
-        )
-        self.assertEqual(smart_title("walmart supercenter"), "Walmart Supercenter")
-
 
 class AppSmokeTests(unittest.TestCase):
     """Load and render the process-statement app page once, with no uploads."""

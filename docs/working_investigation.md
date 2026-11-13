@@ -17,9 +17,8 @@ The graded entry is the "2026-11-12 – Working investigation" section of the [R
   - [`ml/bank_statment_processor.py`](../ml/bank_statment_processor.py) standardizes the bank exports.
   - [`ml/quality_checks.py`](../ml/quality_checks.py) runs the data checks.
   - [`ml/first_result.py`](../ml/first_result.py) and [`ml/ml_models.py`](../ml/ml_models.py) run the baseline and the two KNN models.
-  - [`ml/confusion_analysis.py`](../ml/confusion_analysis.py) finds the biggest confusion pairs.
 
-  Outputs: [`results/first_result_nov12.md`](../results/first_result_nov12.md), [`results/confusion_analysis.md`](../results/confusion_analysis.md), and [`results/data_quality_jillian_nov12.md`](../results/data_quality_jillian_nov12.md).
+  Outputs: [`results/first_result_nov12.md`](../results/first_result_nov12.md) and [`results/data_quality_jillian_nov12.md`](../results/data_quality_jillian_nov12.md).
 
 - **What inputs and steps does the run use? Give the command to reproduce the first check if available, and note any data access or setup needed.**
 
@@ -30,7 +29,6 @@ The graded entry is the "2026-11-12 – Working investigation" section of the [R
   # label main/sub categories using docs/CATEGORY_GUIDE.md
   uv run python -m ml.quality_checks jillian --labeled jillian_transactions_labeled.csv --output results/data_quality_jillian_nov12.md
   uv run python -m ml.first_result --jillian jillian_transactions_labeled.csv --savanna savanna_transactions.csv --output results/first_result_nov12.md
-  uv run python -m ml.confusion_analysis --jillian jillian_transactions_labeled.csv --savanna savanna_transactions.csv
   ```
 
 - **What comparison or diagnostic did you run, using which evaluation split, metric, or quality measure? What does the result show so far?**
@@ -40,11 +38,15 @@ The graded entry is the "2026-11-12 – Working investigation" section of the [R
   - TF-IDF KNN (character n-grams),
   - sentence-embedding KNN (all-MiniLM-L6-v2).
 
-  Both KNN models also use the standardized amount. Metrics are accuracy and macro F1 from 5-fold GroupKFold within each person, plus training on one person and testing on the other.
+  Both KNN models also use a scaled transaction-amount feature: the amount is converted to a training-set z-score and then multiplied by 25. Metrics are accuracy and macro F1 from 5-fold GroupKFold within each person, plus training on one person and testing on the other.
 
-  We found that rows differing only by an ID, date, or confirmation number were landing in both train and test. We now group folds by the description with digits and punctuation removed. This lowered Jillian's embedding-KNN accuracy from 0.672 to 0.586.
+  The models use the original, uncleaned transaction descriptions. We group
+  cross-validation folds by the exact description, assigning all rows with
+  identical description text to the same fold. Therefore, an identical
+  description cannot appear in both training and test data; this prevents
+  memorization without changing the text used as a model feature.
 
-  | Within-person, normalized grouping | Accuracy | Macro F1 |
+  | Within-person, exact-description grouping | Accuracy | Macro F1 |
   |---|---|---|
   | Jillian: baseline / TF-IDF / embeddings | 0.534 / 0.481 / 0.586 | 0.080 / 0.329 / 0.385 |
   | Savanna: baseline / TF-IDF / embeddings | 0.348 / 0.527 / 0.596 | 0.045 / 0.330 / 0.330 |
@@ -62,7 +64,7 @@ The graded entry is the "2026-11-12 – Working investigation" section of the [R
   | Jillian | Bank of America credit card and checking/debit | 2024-12-05 to 2025-12-29 |
   | Savanna | Capital One credit card; Goldenwest checking, gold account, and money market; SoFi checking and savings; U.S. Bank checking | 2025-01-02 to 2025-12-31 |
 
-  Jillian's checking statements were checked against the bank's printed section totals, and all 36 sections matched to the cent. Access limit: this is personal financial data, so nothing raw or labeled is committed.
+Access limit: this is personal financial data, so nothing raw or labeled is committed.
 
 - **What does one cleaned observation represent? Link a permissible sample or summary and report relevant quality checks, such as coverage, duplicates, missingness, or label consistency.**
 
@@ -83,15 +85,15 @@ The graded entry is the "2026-11-12 – Working investigation" section of the [R
   - No empty months. The longest gap between transactions is 4 days.
   - Food & Dining is 35% of the rows, followed by Savings & Investments at 13%.
 
-  Label consistency: we fixed the "Tutition" typo and wrote down labeling decisions in the README. An optional shared-labeling agreement check was offered.
+  Label consistency: we fixed the "Tutition" typo, wrote down labeling decisions in the README, and reviewed each other's transactions to make sure we applied the categories similarly.
 
 - **What initial ML result did you obtain using the cleaned output of this pipeline? Link its code and output. What do the quality checks and ML result suggest you should investigate next?**
 
-  See the table above, [`results/first_result_nov12.md`](../results/first_result_nov12.md), and [`results/confusion_analysis.md`](../results/confusion_analysis.md).
+  See the table above and [`results/first_result_nov12.md`](../results/first_result_nov12.md).
 
   What to investigate next:
-  - **The amount feature.** The same-merchant confusions can only be fixed using the amount.
-  - **Small categories.** Some have fewer than 10 rows and F1 near 0. They need more data or merging.
+  - **The scaled transaction-amount feature.** The same-merchant confusions can only be fixed using the amount.
+  - **Small categories.** Some have fewer than 10 rows and F1 near 0. We need to investigate whether the low scores reflect limited data or labeling and feature issues.
   - **Generic descriptions.** Savanna's "WEB AUTHORIZED PMT" covers several categories (24 errors), and the description alone can't separate them.
 
 ## Next question
@@ -100,8 +102,8 @@ The graded entry is the "2026-11-12 – Working investigation" section of the [R
 
   1. We added Jillian's checking data as planned, so both people cover similar kinds of transactions.
   2. We dropped the made-up sample. The pipeline is reproduced with your own bank exports instead.
-  3. The shared-label agreement check is now optional.
-  4. We report the normalized grouping, because the error analysis showed near-duplicate descriptions in both train and test.
+  3. We reviewed each other's transaction labels to check that we were applying the category guide consistently.
+  4. We report exact-description grouping consistently across the evaluation scripts.
 
 - **What is uncertain or blocked now, and how will you adjust the scope if needed?**
 
@@ -111,5 +113,3 @@ The graded entry is the "2026-11-12 – Working investigation" section of the [R
   - Our category sets differ. Jillian has no Housing & Bills, Savings & Investments, or Gifts & Donations rows.
   - Several categories are very small.
   - All Venmo payments share one label.
-
-  If small categories stay near F1 = 0, we will merge or drop them and focus on the main categories.

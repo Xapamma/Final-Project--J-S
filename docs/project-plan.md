@@ -9,7 +9,7 @@
 
 - **Question:** After cleaning and combining our personal bank statements into one dataset, which machine learning techniques most accurately categorize the transactions into main categories and subcategories? And can a model trained on one person’s bank statements correctly categorize the statements of another?
 - **Why it interests us:** We built a Streamlit budgeting dashboard ([Streamlit-Budget-Dashboard](https://github.com/Xapamma/Streamlit-Budget-Dashboard)) that categorizes transactions with hand-written rules. We want to replace those rules with machine learning, and that starts with a clean, consistent dataset. Bank exports are messy and differ between banks, so building a reliable dataset is a real part of the work.
-- **Expectation:** We expect cleaning the transaction descriptions to improve categorization, and we expect a model trained on one person to work only partly on the other because we shop at different places and use different banks. The results could also show that differences in how we each categorize transactions matter more than the model.
+- **Expectation:** We expect the original transaction descriptions and amounts to provide useful signals for categorization, and we expect a model trained on one person to work only partly on the other because we shop at different places and use different banks. The results could also show that differences in how we each categorize transactions matter more than the model.
 
 ## Chosen route
 
@@ -34,7 +34,7 @@
 - **Observation and main fields:** one transaction per row, with person (A or B), bank, account type, date, original description, amount, and category label.
 - **Building the dataset:**
   1. Load each bank's CSV into a common format, building on the dashboard's existing import code.
-  2. Clean the data: standardize dates and signs, remove duplicates, flag transfers between our own accounts, and preserve the original descriptions for modeling.
+  2. Clean the data: standardize dates and signs, remove duplicates, flag transfers between our own accounts, and use the original descriptions for modeling.
   3. Write a short category guide so we label consistently, then each label our own transactions. We will both label a shared sample to check how consistently we label.
   4. Combine everything into one final dataset.
 - **Documentation:** We will record which files were used (bank, account, date range, download date) and what each cleaning step changed.
