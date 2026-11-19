@@ -1,41 +1,41 @@
-person,Fold,Method,Selected features,Settings,Tuning macro F1
-Savanna,1,knn_tfidf,description,"neighbors=3, distance=cosine",0.7342527697889789
-Savanna,1,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.7588656836729882
-Savanna,1,random_forest,description + type,"trees=200, max depth=unlimited",0.7910965460517003
-Savanna,1,neural_network,description + amount=1 + type + account,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.7922051309475083
-Savanna,2,knn_tfidf,description,"neighbors=3, distance=euclidean",0.7774762825155612
-Savanna,2,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.7685208271286935
-Savanna,2,random_forest,description + type,"trees=200, max depth=20",0.8151871984037751
-Savanna,2,neural_network,description + account,"layers=(100,), alpha=0.001, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.8254918456679502
-Savanna,3,knn_tfidf,description,"neighbors=3, distance=cosine",0.739770356663858
-Savanna,3,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.7097423981268908
-Savanna,3,random_forest,description,"trees=200, max depth=unlimited",0.7705497002314795
-Savanna,3,neural_network,description + amount=1 + type + account,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.764553127093636
-Savanna,4,knn_tfidf,description + amount=1,"neighbors=3, distance=euclidean",0.738398709238723
-Savanna,4,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.7260598166002671
-Savanna,4,random_forest,description + amount=1 + type,"trees=200, max depth=unlimited",0.7907708072753543
-Savanna,4,neural_network,description + amount=1 + type,"layers=(100,), alpha=0.01, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.7925205907057227
-Savanna,5,knn_tfidf,description,"neighbors=3, distance=cosine",0.7419490000464783
-Savanna,5,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.7599788669846648
-Savanna,5,random_forest,description + account,"trees=200, max depth=unlimited",0.7937229745912404
-Savanna,5,neural_network,description + amount=1 + type + account,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.8023293092187225
-Jillian,1,knn_tfidf,description + amount=1,"neighbors=3, distance=cosine",0.6625059332988291
-Jillian,1,knn_embeddings,description + account,"neighbors=5, distance=cosine",0.6851032127613745
-Jillian,1,random_forest,description + amount=1 + type,"trees=100, max depth=unlimited",0.7189568672445429
-Jillian,1,neural_network,description + amount=1 + type + account,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.7062460596847773
-Jillian,2,knn_tfidf,description,"neighbors=3, distance=cosine",0.6881615486647809
-Jillian,2,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.7191221938270337
-Jillian,2,random_forest,description + amount=1 + type,"trees=100, max depth=unlimited",0.6823888224254177
-Jillian,2,neural_network,description + amount=1 + type + account,"layers=(100,), alpha=0.0001, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.725409180385475
-Jillian,3,knn_tfidf,description + amount=1,"neighbors=3, distance=cosine",0.6797842778755595
-Jillian,3,knn_embeddings,description + amount=1 + type,"neighbors=3, distance=euclidean",0.6703260898279648
-Jillian,3,random_forest,description + amount=1 + type,"trees=100, max depth=unlimited",0.6286597282932694
-Jillian,3,neural_network,description,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.6594960300117075
-Jillian,4,knn_tfidf,description,"neighbors=5, distance=cosine",0.6596036987637821
-Jillian,4,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.6785363277632165
-Jillian,4,random_forest,description + amount=1 + type,"trees=400, max depth=unlimited",0.666364071386333
-Jillian,4,neural_network,description + account,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.700912044256807
-Jillian,5,knn_tfidf,description,"neighbors=3, distance=cosine",0.6527784310317936
-Jillian,5,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.6693541496596271
-Jillian,5,random_forest,description + amount=1 + type,"trees=400, max depth=unlimited",0.6564341189807985
-Jillian,5,neural_network,description + type,"layers=(100,), alpha=0.01, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.6792103250127951
+person,fold,method,feature_variant,metric,n_neighbors,status,inner_cv_macro_f1,max_depth,n_estimators,alpha,early_stopping,hidden_layer_sizes,learning_rate_init,max_iter,n_iter_no_change,validation_fraction
+Savanna,1,knn_tfidf,description,cosine,3.0,tuned,0.7303425028286662,,,,,,,,,
+Savanna,1,knn_embeddings,description + type,euclidean,3.0,tuned,0.758424845886521,,,,,,,,,
+Savanna,1,random_forest,description + type,,,tuned,0.7916943686704289,,200.0,,,,,,,
+Savanna,1,neural_network,description + amount=1 + type + account,,,tuned,0.7922051309475083,,,1e-05,True,"(100,)",0.001,500.0,20.0,0.15
+Savanna,2,knn_tfidf,description,cosine,3.0,tuned,0.7861933865319551,,,,,,,,,
+Savanna,2,knn_embeddings,description + type,cosine,3.0,tuned,0.7676266602955354,,,,,,,,,
+Savanna,2,random_forest,description + type,,,tuned,0.8088300369711834,20.0,200.0,,,,,,,
+Savanna,2,neural_network,description + account,,,tuned,0.8254918456679502,,,0.001,True,"(100,)",0.001,500.0,20.0,0.15
+Savanna,3,knn_tfidf,description,cosine,3.0,tuned,0.7332623417543772,,,,,,,,,
+Savanna,3,knn_embeddings,description + type,cosine,3.0,tuned,0.7002771471844218,,,,,,,,,
+Savanna,3,random_forest,description,,,tuned,0.7670357877309417,,200.0,,,,,,,
+Savanna,3,neural_network,description + amount=1 + type + account,,,tuned,0.764553127093636,,,1e-05,True,"(100,)",0.001,500.0,20.0,0.15
+Savanna,4,knn_tfidf,description + amount=1,euclidean,3.0,tuned,0.7413199877458688,,,,,,,,,
+Savanna,4,knn_embeddings,description + type,euclidean,3.0,tuned,0.7264947523360062,,,,,,,,,
+Savanna,4,random_forest,description + amount=1 + type,,,tuned,0.7899440527228311,,400.0,,,,,,,
+Savanna,4,neural_network,description + amount=1 + type,,,tuned,0.7940519758388042,,,0.01,True,"(100,)",0.001,500.0,20.0,0.15
+Savanna,5,knn_tfidf,description,cosine,3.0,tuned,0.7562555073619492,,,,,,,,,
+Savanna,5,knn_embeddings,description + type,euclidean,3.0,tuned,0.760543019128686,,,,,,,,,
+Savanna,5,random_forest,description + account,,,tuned,0.7929464430780349,20.0,200.0,,,,,,,
+Savanna,5,neural_network,description + amount=1 + type + account,,,tuned,0.8023293092187225,,,1e-05,True,"(100,)",0.001,500.0,20.0,0.15
+Jillian,1,knn_tfidf,description,cosine,3.0,tuned,0.6700142118474827,,,,,,,,,
+Jillian,1,knn_embeddings,description + type,cosine,3.0,tuned,0.747519414208079,,,,,,,,,
+Jillian,1,random_forest,description + amount=1 + type + account,,,tuned,0.7098683921231985,,200.0,,,,,,,
+Jillian,1,neural_network,description + type,,,tuned,0.7391894154905505,,,1e-05,True,"(100,)",0.001,500.0,20.0,0.15
+Jillian,2,knn_tfidf,description,cosine,3.0,tuned,0.7410350087226028,,,,,,,,,
+Jillian,2,knn_embeddings,description + type,cosine,3.0,tuned,0.7298517045328015,,,,,,,,,
+Jillian,2,random_forest,description + amount=1 + type + account,,,tuned,0.6899734262019286,,200.0,,,,,,,
+Jillian,2,neural_network,description + type,,,tuned,0.728281785897798,,,0.001,True,"(100,)",0.001,500.0,20.0,0.15
+Jillian,3,knn_tfidf,description,cosine,3.0,tuned,0.6429108683240538,,,,,,,,,
+Jillian,3,knn_embeddings,description + amount=1,cosine,3.0,tuned,0.6773844945622942,,,,,,,,,
+Jillian,3,random_forest,description + amount=1,,,tuned,0.5974155403189577,10.0,400.0,,,,,,,
+Jillian,3,neural_network,description + amount=1 + type + account,,,tuned,0.6927284896009417,,,1e-05,True,"(100,)",0.001,500.0,20.0,0.15
+Jillian,4,knn_tfidf,description,cosine,3.0,tuned,0.6732915803540909,,,,,,,,,
+Jillian,4,knn_embeddings,description + amount=1 + type + account,cosine,3.0,tuned,0.6454903953670402,,,,,,,,,
+Jillian,4,random_forest,description + amount=1,,,tuned,0.6890896539307692,,200.0,,,,,,,
+Jillian,4,neural_network,description + amount=1,,,tuned,0.6947169767489476,,,1e-05,True,"(100,)",0.001,500.0,20.0,0.15
+Jillian,5,knn_tfidf,description + amount=1,euclidean,3.0,tuned,0.6844407663136787,,,,,,,,,
+Jillian,5,knn_embeddings,description + amount=1 + type + account,cosine,3.0,tuned,0.681706683627879,,,,,,,,,
+Jillian,5,random_forest,description + amount=1 + type,,,tuned,0.7035217786513378,,100.0,,,,,,,
+Jillian,5,neural_network,description,,,tuned,0.7006596951989725,,,0.0001,True,"(100,)",0.001,500.0,20.0,0.15
