@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="850" height="410" viewBox="0 0 850 410">
+<rect width="850" height="410" fill="white"/>
+<g font-family="Arial,sans-serif" fill="#172033">
+<text x="20" y="30" font-size="21" font-weight="bold">Adding amount: change in within-person macro F1</text>
+<text x="20" y="53" font-size="14">Compared with description alone; fixed model settings and the same held-out folds</text>
+<line x1="465" y1="75" x2="465" y2="360" stroke="#4a5568"/>
+<text x="20" y="99" font-size="15">Savanna · TF-IDF KNN</text>
+<rect x="465.0" y="82" width="54.7" height="22" fill="#23877e"/>
+<text x="529.7" y="99" font-size="15" text-anchor="start">+0.032</text>
+<text x="20" y="133" font-size="15">Savanna · Embedding KNN</text>
+<rect x="465.0" y="116" width="107.9" height="22" fill="#23877e"/>
+<text x="582.9" y="133" font-size="15" text-anchor="start">+0.063</text>
+<text x="20" y="167" font-size="15">Savanna · Random forest</text>
+<rect x="323.3" y="150" width="141.7" height="22" fill="#bc6543"/>
+<text x="313.3" y="167" font-size="15" text-anchor="end">-0.083</text>
+<text x="20" y="201" font-size="15">Savanna · Neural network</text>
+<rect x="465.0" y="184" width="64.8" height="22" fill="#23877e"/>
+<text x="539.8" y="201" font-size="15" text-anchor="start">+0.038</text>
+<text x="20" y="235" font-size="15">Jillian · TF-IDF KNN</text>
+<rect x="465.0" y="218" width="201.2" height="22" fill="#23877e"/>
+<text x="676.2" y="235" font-size="15" text-anchor="start">+0.118</text>
+<text x="20" y="269" font-size="15">Jillian · Embedding KNN</text>
+<rect x="465.0" y="252" width="27.0" height="22" fill="#23877e"/>
+<text x="502.0" y="269" font-size="15" text-anchor="start">+0.016</text>
+<text x="20" y="303" font-size="15">Jillian · Random forest</text>
+<rect x="465.0" y="286" width="13.3" height="22" fill="#23877e"/>
+<text x="488.3" y="303" font-size="15" text-anchor="start">+0.008</text>
+<text x="20" y="337" font-size="15">Jillian · Neural network</text>
+<rect x="465.0" y="320" width="197.0" height="22" fill="#23877e"/>
+<text x="672.0" y="337" font-size="15" text-anchor="start">+0.116</text>
+<text x="465" y="385" text-anchor="middle" font-size="14">0 = no change</text>
+</g></svg>

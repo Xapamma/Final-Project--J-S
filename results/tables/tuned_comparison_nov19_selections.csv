@@ -1,0 +1,41 @@
+person,Fold,Method,Selected features,Settings,Tuning macro F1,Status
+Savanna,1,knn_tfidf,description,"neighbors=3, distance=cosine",0.7343,
+Savanna,1,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.7589,
+Savanna,1,random_forest,description + type,"trees=200, max depth=unlimited",0.7911,
+Savanna,1,neural_network,description + amount=1 + type + account,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.7922,
+Savanna,2,knn_tfidf,description,"neighbors=3, distance=euclidean",0.7775,
+Savanna,2,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.7685,
+Savanna,2,random_forest,description + type,"trees=200, max depth=20",0.8152,
+Savanna,2,neural_network,description + account,"layers=(100,), alpha=0.001, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.8255,
+Savanna,3,knn_tfidf,description,"neighbors=3, distance=cosine",0.7398,
+Savanna,3,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.7097,
+Savanna,3,random_forest,description,"trees=200, max depth=unlimited",0.7705,
+Savanna,3,neural_network,description + amount=1 + type + account,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.7646,
+Savanna,4,knn_tfidf,description + amount=1,"neighbors=3, distance=euclidean",0.7384,
+Savanna,4,knn_embeddings,description + type,"neighbors=3, distance=euclidean",0.7258,
+Savanna,4,random_forest,description + amount=1 + type,"trees=200, max depth=unlimited",0.7908,
+Savanna,4,neural_network,description + amount=1 + type,"layers=(100,), alpha=0.01, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.7925,
+Savanna,5,knn_tfidf,description,"neighbors=3, distance=cosine",0.7419,
+Savanna,5,knn_embeddings,description + type,"neighbors=3, distance=cosine",0.76,
+Savanna,5,random_forest,description + account,"trees=200, max depth=unlimited",0.7937,
+Savanna,5,neural_network,description + amount=1 + type + account,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.8023,
+Jillian,1,knn_tfidf,description,"neighbors=5, distance=cosine",—,default: rare category
+Jillian,1,knn_embeddings,description,"neighbors=5, distance=cosine",—,default: rare category
+Jillian,1,random_forest,description,"trees=200, max depth=unlimited",—,default: rare category
+Jillian,1,neural_network,description,"layers=(100,), alpha=0.0001, max iterations=1000, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",—,default: rare category
+Jillian,2,knn_tfidf,description + amount=1,"neighbors=3, distance=cosine",0.6001,—
+Jillian,2,knn_embeddings,description + amount=1 + type + account,"neighbors=3, distance=cosine",0.6995,—
+Jillian,2,random_forest,description + amount=1 + type,"trees=400, max depth=unlimited",0.5911,—
+Jillian,2,neural_network,description + amount=1,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.6265,—
+Jillian,3,knn_tfidf,description + amount=1,"neighbors=3, distance=cosine",0.5038,—
+Jillian,3,knn_embeddings,description + amount=1 + type,"neighbors=5, distance=cosine",0.5934,—
+Jillian,3,random_forest,description + amount=1 + type,"trees=200, max depth=unlimited",0.5001,—
+Jillian,3,neural_network,description + type,"layers=(100,), alpha=1e-05, max iterations=500, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",0.4928,—
+Jillian,4,knn_tfidf,description,"neighbors=5, distance=cosine",—,default: rare category
+Jillian,4,knn_embeddings,description,"neighbors=5, distance=cosine",—,default: rare category
+Jillian,4,random_forest,description,"trees=200, max depth=unlimited",—,default: rare category
+Jillian,4,neural_network,description,"layers=(100,), alpha=0.0001, max iterations=1000, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",—,default: rare category
+Jillian,5,knn_tfidf,description,"neighbors=5, distance=cosine",—,default: rare category
+Jillian,5,knn_embeddings,description,"neighbors=5, distance=cosine",—,default: rare category
+Jillian,5,random_forest,description,"trees=200, max depth=unlimited",—,default: rare category
+Jillian,5,neural_network,description,"layers=(100,), alpha=0.0001, max iterations=1000, learning rate=0.001, early stopping=True, validation fraction=0.15, patience=20",—,default: rare category

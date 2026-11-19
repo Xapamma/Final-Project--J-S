@@ -11,7 +11,7 @@ sub_category_map, category_hierarchy, merchant cache, and the
 
 Labeling is now up to US:
 
-    1. `ml/bank_statment_processor.py` builds one clean, UNLABELED dataset
+    1. `ml/bank_statement_processor.py` builds one clean, UNLABELED dataset
        per person. The `main_category` and `sub_category` columns are empty
        on purpose.
     2. We hand-label some rows in that CSV (this IS our training data).
@@ -21,29 +21,26 @@ Labeling is now up to US:
        labeled rows, and then use the trained models to categorize
        EVERY INDIVIDUAL TRANSACTION automatically.
 
-MANUAL WORKFLOW (what we do BY HAND)
-------------------------------------
+REPRODUCIBLE WORKFLOW
+---------------------
   STEP 1  Build the unlabeled dataset
-            python -m ml.bank_statment_processor
+            uv run python -m ml.bank_statment_processor
 
-  STEP 2  Label a batch of transactions
-            Open the generated person CSV and fill in
-            `main_category` and `sub_category` for as many rows as we
-            can. (Split the file between us to go twice as fast.)
+  STEP 2  Hand-label `main_category` and `sub_category` in the
+            generated CSV for as many rows as possible.
 
-  STEP 3  Install the ML libraries (run in the project folder)
-            uv add scikit-learn sentence-transformers
+  STEP 3  Install project dependencies
+            uv sync
 
-  STEP 4  Implement every TODO in this file. The scaffolding and data
-            plumbing are written for us - the ML code is ours to write.
+  STEP 4  Train and categorize transactions
+            uv run python -c "from ml.ml_models import train_and_categorize; train_and_categorize()"
 
-  STEP 5  Train on our labels, then categorize every transaction
-            python -c "from ml.ml_models import train_and_categorize; train_and_categorize()"
+  STEP 5  Evaluate the original fixed baselines
+            uv run python -m ml.first_result --savanna savanna_transactions.csv
+            uv run python -m ml.first_result --jillian jillian_transactions_labeled.csv
 
-  STEP 6  Evaluate
-            Look at accuracy + the confusion matrix from
-            evaluate_categorizer(). Which categories get confused?
-            Which descriptions show up in test but never in training?
+  STEP 6  Compare tuned models and amount multipliers
+            uv run python -m ml.model_comparison
 
 CROSS-PERSON EXPERIMENT (our project question)
 ----------------------------------------------
@@ -52,13 +49,21 @@ categorize the statements of another?"  To answer it we need a
 `person` column (A or B) in the CSV - add it by hand, then run
 cross_person_experiment() below.
 
-BASELINES WE HAVE TO BEAT
+MODULE ORGANIZATION
+-------------------
+  * `ml_models.py` owns reusable data plumbing, feature construction,
+    model trainers, parameter grids, tuning helpers, and evaluation.
+  * `first_result.py` reports the unchanged fixed 5-NN baseline.
+  * `model_comparison.py` performs outer-fold model comparison.
+
+BASELINES AND COMPARISONS
 -------------------------
-  * always predict the most common category in training data
-    (baseline_most_common())
-The first comparison includes character-level TF-IDF KNN and sentence-embedding
-KNN. Both use the original description and a standardized amount weighted by
-25; neither uses a merchant column.
+  * Always predict the most common training category
+    (`baseline_most_common`).
+  * Character TF-IDF KNN and sentence-embedding KNN.
+  * Random forest and neural network on embedding features.
+  * Tuned KNN comparisons also select the amount multiplier and KNN
+    parameters with cross-validation.
 
 DATASET COLUMNS WE WORK WITH (output of bank_statement_processor.py)
 --------------------------------------------------------------------
@@ -207,6 +212,89 @@ def build_tfidf_features(
     )
 
 
+def oversample_small_categories(X, y, minimum_support=20, random_state=42):
+    """Oversample categories below a support threshold inside training data only."""
+    y = pd.Series(y).reset_index(drop=True)
+    rng = np.random.default_rng(random_state)
+    counts = y.value_counts()
+    selected_indices = np.arange(len(y), dtype=int).tolist()
+
+    for category, count in counts.items():
+        if count >= minimum_support:
+            continue
+        category_indices = y.index[y == category].to_numpy(dtype=int)
+        needed = minimum_support - len(category_indices)
+        selected_indices.extend(
+            rng.choice(category_indices, size=needed, replace=True).tolist()
+        )
+
+    indices = np.asarray(selected_indices, dtype=int)
+    from scipy.sparse import issparse, vstack
+
+    X_resampled = vstack([X[index:index + 1] for index in indices]) if issparse(X) else X[indices]
+    y_resampled = y.iloc[indices].reset_index(drop=True)
+    return X_resampled, y_resampled
+
+
+def build_embedding_feature_ablation(
+    train,
+    test,
+    *,
+    include_amount=False,
+    include_type=False,
+    include_account=False,
+    amount_weight=1.0,
+    model_name=DEFAULT_EMBEDDING_MODEL,
+):
+    """Build embedding features with leakage-safe optional tabular features."""
+    train_embeddings, model = embed_descriptions(
+        train["description"], model_name
+    )
+    test_embeddings = model.encode(
+        test["description"].fillna("").astype(str).tolist(),
+        convert_to_numpy=True,
+        normalize_embeddings=True,
+        show_progress_bar=False,
+    )
+    train_parts = [train_embeddings]
+    test_parts = [test_embeddings]
+
+    if include_amount:
+        train_amount, test_amount = _amount_features(
+            train["amount"],
+            test["amount"],
+            weight=amount_weight,
+        )
+        train_parts.append(train_amount)
+        test_parts.append(test_amount)
+
+    for column in ("type", "account"):
+        include = include_type if column == "type" else include_account
+        if not include:
+            continue
+        train_values = pd.Series(train[column].fillna("Unknown").astype(str).str.strip())
+        test_values = pd.Series(test[column].fillna("Unknown").astype(str).str.strip())
+        train_categories = sorted(train_values.unique())
+        train_dummies = pd.get_dummies(
+            train_values,
+            prefix=column,
+            dtype=float,
+        ).reindex(columns=[f"{column}_{value}" for value in train_categories], fill_value=0.0)
+        test_dummies = pd.get_dummies(
+            test_values,
+            prefix=column,
+            dtype=float,
+        ).reindex(columns=train_dummies.columns, fill_value=0.0)
+        train_parts.append(train_dummies.to_numpy(dtype=float))
+        test_parts.append(test_dummies.to_numpy(dtype=float))
+
+    return (
+        np.hstack(train_parts),
+        np.hstack(test_parts),
+        model,
+    )
+
+
 # ---------------------------------------------------------------------------
 # 2. MODELS - one training helper per ML method we compare
 # ---------------------------------------------------------------------------
@@ -221,42 +309,275 @@ def train_knn(X_train, y_train, n_neighbors=5, metric="cosine"):
 
 
 def train_random_forest(X_train, y_train, n_estimators=200, max_depth=None):
-    """TODO (we write this): random forest classifier.
+    """Train a random forest classifier."""
+    from sklearn.ensemble import RandomForestClassifier
 
-    What to implement:
+    model = RandomForestClassifier(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        random_state=42,
+        n_jobs=1,
+    )
+    model.fit(X_train, y_train)
+    return model
+
+
+def train_neural_network(
+    X_train,
+    y_train,
+    hidden_layer_sizes=(100,),
+    max_iter=1000,
+    alpha=0.0001,
+    learning_rate_init=0.001,
+    early_stopping=True,
+    validation_fraction=0.15,
+    n_iter_no_change=20,
+):
+    """Train an MLP (ANN) classifier."""
+    import warnings
+
+    from sklearn.neural_network import MLPClassifier
+    from sklearn.exceptions import ConvergenceWarning
+
+    model = MLPClassifier(
+        hidden_layer_sizes=hidden_layer_sizes,
+        max_iter=max_iter,
+        random_state=42,
+        alpha=alpha,
+        learning_rate_init=learning_rate_init,
+        early_stopping=early_stopping,
+        validation_fraction=validation_fraction,
+        n_iter_no_change=n_iter_no_change,
+    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=ConvergenceWarning)
+        model.fit(X_train, y_train)
+    return model
+
+
+def train_categorizer(X_train, y_train, method="random_forest", **params):
+    """Train the requested classifier.
+
+    ``params`` are forwarded to the corresponding trainer, for example
+    ``n_neighbors=7`` for KNN or ``n_estimators=400`` for a random forest.
+    """
+    trainers = {
+        "knn": train_knn,
+        "random_forest": train_random_forest,
+        "neural_network": train_neural_network,
+    }
+    if method not in trainers:
+        raise ValueError(
+            f"Unknown method {method!r}; choose from {sorted(trainers)}."
+        )
+    return trainers[method](X_train, y_train, **params)
+
+
+# Parameter grids used for cross-validation and hyperparameter tuning.
+CV_PARAM_GRIDS = {
+    "knn": {
+        "n_neighbors": [3, 5, 7, 9],
+        "metric": ["cosine", "euclidean"],
+    },
+    "random_forest": {
+        "n_estimators": [100, 200, 400],
+        "max_depth": [None, 10, 20],
+    },
+    "neural_network": {
+        "hidden_layer_sizes": [(50,), (100,)],
+        "max_iter": [500, 1000],
+        "alpha": [0.00001, 0.0001, 0.001, 0.01],
+        "learning_rate_init": [0.001],
+        "early_stopping": [True],
+        "validation_fraction": [0.15],
+        "n_iter_no_change": [20],
+    },
+}
+
+
+def tune_model(X, y, estimator, param_grid, cv=5, scoring="f1_macro"):
+    """Cross-validate estimator parameters and return the fitted search.
+
+    The returned ``GridSearchCV`` is fitted and exposes ``best_estimator_``,
+    ``best_params_``, ``best_score_``, and ``cv_results_``.
+    """
+    import warnings
+
+    from sklearn.exceptions import ConvergenceWarning
+    from sklearn.model_selection import GridSearchCV, StratifiedKFold
+
+    y_counts = pd.Series(y).value_counts()
+    usable_splits = int(y_counts.min()) if len(y_counts) else 0
+    if usable_splits < 2:
+        raise ValueError(
+            "Cross-validation tuning requires at least 2 rows in every category."
+        )
+    n_splits = min(cv, usable_splits)
+    splitter = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+    search = GridSearchCV(
+        estimator,
+        param_grid,
+        cv=splitter,
+        scoring=scoring,
+        n_jobs=1,
+        error_score=0.0,
+    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=ConvergenceWarning)
+        search.fit(X, y)
+    return search
+
+
+def tune_categorizer(X, y, method="random_forest", param_grid=None, cv=5):
+    """Tune one categorizer and return its fitted GridSearchCV search."""
+    if method == "knn":
+        from sklearn.neighbors import KNeighborsClassifier
+        estimator = KNeighborsClassifier()
+    elif method == "random_forest":
         from sklearn.ensemble import RandomForestClassifier
-        model = RandomForestClassifier(
-            n_estimators=n_estimators, max_depth=max_depth, random_state=42)
-        model.fit(X_train, y_train)
-        return model
-    """
-    raise NotImplementedError("TODO: implement train_random_forest()")
-
-
-def train_neural_network(X_train, y_train, hidden_layer_sizes=(100, 50), max_iter=300):
-    """TODO (we write this): ANN / multilayer perceptron classifier.
-
-    What to implement:
+        estimator = RandomForestClassifier(random_state=42, n_jobs=1)
+    elif method == "neural_network":
         from sklearn.neural_network import MLPClassifier
-        model = MLPClassifier(
-            hidden_layer_sizes=hidden_layer_sizes,
-            max_iter=max_iter,
-            random_state=42)
-        model.fit(X_train, y_train)
-        return model
+        estimator = MLPClassifier(
+            random_state=42,
+            early_stopping=True,
+            validation_fraction=0.15,
+            n_iter_no_change=20,
+        )
+    else:
+        raise ValueError(
+            "Unknown method "
+            f"{method!r}; choose from ['knn', 'random_forest', 'neural_network']. "
+        )
+    grid = param_grid if param_grid is not None else CV_PARAM_GRIDS[method]
+    return tune_model(X, y, estimator, grid, cv=cv)
+
+
+def tune_knn(X, y, param_grid=None, cv=5):
+    return tune_categorizer(X, y, "knn", param_grid=param_grid, cv=cv)
+
+
+def tune_random_forest(X, y, param_grid=None, cv=5):
+    return tune_categorizer(X, y, "random_forest", param_grid=param_grid, cv=cv)
+
+
+def tune_neural_network(X, y, param_grid=None, cv=5):
+    return tune_categorizer(X, y, "neural_network", param_grid=param_grid, cv=cv)
+
+
+AMOUNT_WEIGHT_GRID = [0.0, 1.0]
+
+
+def tune_amount_multiplier(
+    train,
+    target="main_category",
+    feature_type="embedding",
+    amount_weights=None,
+    knn_param_grid=None,
+    cv=3,
+    oversampling_threshold=20,
+):
+    """Tune the amount multiplier together with KNN parameters.
+
+    Inner splits use stratified rows within ``train``. For every multiplier
+    and KNN parameter combination, text and amount features are rebuilt for
+    the inner training/validation split so amount scaling and TF-IDF fitting
+    remain leakage-safe.
+
+    Returns ``(best_result, cv_results)``. ``best_result`` contains
+    ``amount_weight``, ``n_neighbors``, ``metric``, and ``mean_macro_f1``.
     """
-    raise NotImplementedError("TODO: implement train_neural_network()")
+    from itertools import product
 
+    from sklearn.model_selection import StratifiedKFold
 
-def train_categorizer(X_train, y_train, method="random_forest"):
-    """TODO (we write this): wrapper that calls the right trainer above.
+    if feature_type not in ("embedding", "tfidf"):
+        raise ValueError(
+            f"Unknown feature_type {feature_type!r}; use 'embedding' or 'tfidf'."
+        )
 
-    method (str): one of "knn", "random_forest", "neural_network".
-    We will train TWO separate models per method - one that predicts
-    main_category and one that predicts sub_category - because those
-    are two different label sets.
-    """
-    raise NotImplementedError("TODO: implement train_categorizer()")
+    train = load_labeled(train).reset_index(drop=True)
+    y = train[target]
+    counts = y.value_counts()
+    if len(counts) < 2 or int(counts.min()) < 2:
+        return {
+            "amount_weight": 1.0,
+            "n_neighbors": 5,
+            "metric": "cosine",
+            "mean_macro_f1": None,
+        }, pd.DataFrame()
+
+    weights = amount_weights or AMOUNT_WEIGHT_GRID
+    grid = knn_param_grid or CV_PARAM_GRIDS["knn"]
+    neighbors = grid.get("n_neighbors", [5])
+    metrics = grid.get("metric", ["cosine"])
+    n_splits = min(cv, int(counts.min()))
+    splitter = StratifiedKFold(
+        n_splits=n_splits,
+        shuffle=True,
+        random_state=42,
+    )
+
+    rows = []
+    combinations = list(product(weights, neighbors, metrics))
+    for amount_weight, n_neighbors, metric in combinations:
+        fold_scores = []
+        for inner_train_idx, inner_test_idx in splitter.split(
+            train,
+            train[target],
+        ):
+            inner_train = train.iloc[inner_train_idx]
+            inner_test = train.iloc[inner_test_idx]
+            if feature_type == "embedding":
+                X_inner_train, X_inner_test, _ = build_embedding_features(
+                    inner_train,
+                    inner_test,
+                    amount_weight=amount_weight,
+                )
+            else:
+                X_inner_train, X_inner_test = build_tfidf_features(
+                    inner_train,
+                    inner_test,
+                    amount_weight=amount_weight,
+                )
+            X_inner_train, inner_y = oversample_small_categories(
+                X_inner_train,
+                inner_train[target],
+                minimum_support=oversampling_threshold,
+                random_state=42,
+            )
+            model = train_knn(
+                X_inner_train,
+                inner_y,
+                n_neighbors=n_neighbors,
+                metric=metric,
+            )
+            pred = model.predict(X_inner_test)
+            score = evaluate_categorizer(
+                inner_test[target],
+                pred,
+                verbose=False,
+            )
+            fold_scores.append(score["macro_f1"])
+        rows.append({
+            "amount_weight": amount_weight,
+            "n_neighbors": n_neighbors,
+            "metric": metric,
+            "mean_macro_f1": float(np.mean(fold_scores)),
+        })
+
+    cv_results = pd.DataFrame(rows)
+    best_row = cv_results.sort_values(
+        ["mean_macro_f1", "amount_weight", "n_neighbors", "metric"],
+        ascending=[False, True, True, True],
+    ).iloc[0]
+    best_result = {
+        "amount_weight": float(best_row["amount_weight"]),
+        "n_neighbors": int(best_row["n_neighbors"]),
+        "metric": str(best_row["metric"]),
+        "mean_macro_f1": float(best_row["mean_macro_f1"]),
+    }
+    return best_result, cv_results
 
 
 # ---------------------------------------------------------------------------
@@ -265,28 +586,55 @@ def train_categorizer(X_train, y_train, method="random_forest"):
 
 def categorize_transaction(description, amount=None,
                            vectorizer=None, main_model=None, sub_model=None):
-    """TODO (we write this): predict categories for ONE transaction.
+    """Predict main and sub categories for one transaction."""
+    if main_model is None or sub_model is None:
+        raise ValueError("main_model and sub_model are required.")
 
-    This is the function that assigns a main_category / sub_category to
-    a single transaction - the core of what we want the ML to do.
+    row = pd.DataFrame({
+        "description": ["" if description is None else str(description)],
+        "amount": [0.0 if amount is None else amount],
+    })
+    # Embedding-trained models use the lazy shared embedding helper.
+    # TF-IDF-trained models can supply vectorizer and use it here too.
+    if vectorizer is not None:
+        text = vectorizer.transform(row["description"].fillna(""))
+        from scipy.sparse import hstack
+        amount_value = pd.to_numeric(row["amount"], errors="coerce").fillna(0.0)
+        mean = getattr(main_model, "_amount_mean", 0.0)
+        scale = getattr(main_model, "_amount_scale", 1.0)
+        weight = getattr(main_model, "_amount_weight", DEFAULT_AMOUNT_WEIGHT)
+        scaled_amount = ((amount_value - mean) / scale).to_numpy().reshape(-1, 1)
+        X_row = hstack([text, scaled_amount * weight]).tocsr()
+    else:
+        embeddings, model = embed_descriptions(row["description"])
+        amount_value = pd.to_numeric(row["amount"], errors="coerce").fillna(0.0)
+        mean = getattr(main_model, "_amount_mean", 0.0)
+        scale = getattr(main_model, "_amount_scale", 1.0)
+        weight = getattr(main_model, "_amount_weight", DEFAULT_AMOUNT_WEIGHT)
+        scaled_amount = ((amount_value - mean) / scale).to_numpy().reshape(-1, 1)
+        X_row = np.hstack([embeddings, scaled_amount * weight])
 
-    What to implement:
-        1. Build the sentence-embedding-plus-amount feature row.
-        2. main = main_model.predict(X_row)[0]
-        3. sub  = sub_model.predict(X_row)[0]
-        4. return {"main_category": main, "sub_category": sub}
-    """
-    raise NotImplementedError("TODO: implement categorize_transaction()")
+    main = main_model.predict(X_row)[0]
+    sub = sub_model.predict(X_row)[0]
+    return {"main_category": main, "sub_category": sub}
 
 
 def categorize_dataframe(df, vectorizer, main_model, sub_model):
-    """TODO (we write this): fill category columns for EVERY row in df.
-
-    Loop over all rows (df.itertuples() or df.apply), call
-    categorize_transaction() on each one using the shared embedding features,
-    and write the predictions back into the DataFrame. Return the updated df.
-    """
-    raise NotImplementedError("TODO: implement categorize_dataframe()")
+    """Fill category columns for every row in a DataFrame."""
+    result = df.copy()
+    predictions = [
+        categorize_transaction(
+            row.description,
+            getattr(row, "amount", None),
+            vectorizer=vectorizer,
+            main_model=main_model,
+            sub_model=sub_model,
+        )
+        for row in result.itertuples(index=False)
+    ]
+    result["main_category"] = [item["main_category"] for item in predictions]
+    result["sub_category"] = [item["sub_category"] for item in predictions]
+    return result
 
 
 def evaluate_categorizer(y_true, y_pred, label_name="main_category", verbose=True):
@@ -387,31 +735,103 @@ def within_person_cv(df, fit_predict, target="main_category", n_splits=5,
 
 def train_and_categorize(csv_path=CSV_PATH,
                          output_csv="all_banks_final_ml_categorized.csv",
-                         method="random_forest"):
-    """TODO (we write this): the whole pipeline in one call.
+                         method="random_forest", tune=False, cv=5,
+                         amount_weight=DEFAULT_AMOUNT_WEIGHT,
+                         model_name=DEFAULT_EMBEDDING_MODEL):
+    """Train main/sub models, evaluate a holdout, and categorize every row."""
+    from sklearn.model_selection import train_test_split
 
-    Suggested steps:
-        1. df  = load_dataset(csv_path)
-        2. lab = load_labeled(df)
-        3. X, embedder = embed_descriptions(lab["description"])
-        4. Split FIRST (hold out a test set so we can honestly evaluate):
-               from sklearn.model_selection import train_test_split
-               X_tr, X_te, y_tr_main, y_te_main = train_test_split(
-                   X, lab["main_category"], test_size=0.2, random_state=42,
-                   stratify=lab["main_category"])
-        5. main_model = train_categorizer(X_tr, y_tr_main, method=method)
-        6. sub_model  = train_categorizer(
-               X_tr, y_tr_sub, method=method)
-           # y_tr_sub = the sub_category labels for the same training rows
-        7. evaluate both models on X_te (see evaluate_categorizer())
-        8. full = categorize_dataframe(df, vectorizer, main_model, sub_model)
-           # now EVERY transaction - labeled or not - gets a prediction
-        9. full.to_csv(output_csv, index=False)
+    df = load_dataset(csv_path)
+    lab = load_labeled(df).reset_index(drop=True)
+    if len(lab) < 2:
+        raise ValueError("At least two labeled rows are required.")
 
-    MANUAL COMMAND (after implementing):
-        python -c "from ml.ml_models import train_and_categorize; train_and_categorize()"
-    """
-    raise NotImplementedError("TODO: implement train_and_categorize()")
+    main_counts = lab["main_category"].value_counts()
+    can_stratify = bool((main_counts >= 2).all()) and len(lab) >= 4
+    train, test = train_test_split(
+        lab,
+        test_size=0.2,
+        random_state=42,
+        stratify=lab["main_category"] if can_stratify else None,
+    )
+
+    X_train, X_test, _ = build_embedding_features(
+        train,
+        test,
+        amount_weight=amount_weight,
+        model_name=model_name,
+    )
+
+    if tune:
+        main_counts = train["main_category"].value_counts()
+        if len(main_counts) >= 2 and int(main_counts.min()) >= 2:
+            main_search = tune_categorizer(
+                X_train, train["main_category"], method=method, cv=cv
+            )
+            main_model = main_search.best_estimator_
+        else:
+            main_model = train_categorizer(
+                X_train, train["main_category"], method=method
+            )
+
+        sub_train_counts = train["sub_category"].fillna("Unknown").value_counts()
+        sub_safe = sub_train_counts[sub_train_counts >= 2].index
+        sub_train = train["sub_category"].fillna("Unknown").isin(sub_safe)
+        X_sub_train = X_train[sub_train.to_numpy()]
+        y_sub_train = train.loc[sub_train, "sub_category"].fillna("Unknown")
+        if y_sub_train.nunique() >= 2:
+            sub_search = tune_categorizer(
+                X_sub_train, y_sub_train, method=method, cv=cv
+            )
+            sub_model = sub_search.best_estimator_
+        else:
+            sub_model = train_categorizer(
+                X_sub_train, y_sub_train, method=method
+            )
+    else:
+        main_model = train_categorizer(
+            X_train, train["main_category"], method=method
+        )
+        sub_model = train_categorizer(
+            X_train,
+            train["sub_category"].fillna("Unknown"),
+            method=method,
+        )
+
+    main_pred = main_model.predict(X_test)
+    sub_pred = sub_model.predict(
+        X_test
+        if hasattr(sub_model, "predict")
+        else X_test
+    )
+    evaluate_categorizer(
+        test["main_category"], main_pred, label_name="main_category"
+    )
+    evaluate_categorizer(
+        test["sub_category"].fillna("Unknown"),
+        sub_pred,
+        label_name="sub_category",
+    )
+
+    train_values = pd.to_numeric(train["amount"], errors="coerce").fillna(0.0)
+    mean = float(train_values.mean())
+    scale = float(train_values.std(ddof=0))
+    if scale == 0:
+        scale = 1.0
+    for model in (main_model, sub_model):
+        model._amount_mean = mean
+        model._amount_scale = scale
+        model._amount_weight = amount_weight
+
+    full = categorize_dataframe(df, None, main_model, sub_model)
+    full.to_csv(output_csv, index=False)
+    return {
+        "main_model": main_model,
+        "sub_model": sub_model,
+        "output_csv": output_csv,
+        "main_accuracy": float((test["main_category"].astype(str).to_numpy()
+                                == pd.Series(main_pred).astype(str).to_numpy()).mean()),
+    }
 
 
 # ---------------------------------------------------------------------------

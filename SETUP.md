@@ -25,6 +25,7 @@ writes one headless dataset per person.
 | `ml/` | Headless dataset builder (`bank_statment_processor.py`) and ML experiments (`ml_models.py`) |
 | `docs/` | `project-plan.md`, `report.md`, `CATEGORY_GUIDE.md` |
 | `tests/` | Unit tests for the import/export pipeline |
+| `results/media/`, `results/tables/` | Report graphics and tuned-comparison tables |
 | `.data/` | Private raw bank CSVs — **never committed** (see README privacy notes) |
 
 ## 1. Prerequisites
@@ -76,24 +77,32 @@ Pages:
 
 ## 5. ML workflow (our project question)
 
-1. Label transactions in the app (or in the CSV) — this is the training data.
-2. Add the ML library: `uv add scikit-learn`.
-3. Implement the TODOs in `ml/ml_models.py` (thin
-   stubs + instructions are already there).
-4. Train and categorize everything:
+Label transactions in the app or CSV, then use `uv sync` to install the
+dependencies listed in `pyproject.toml`. The current comparison runs both
+within-person and cross-person experiments on the two labeled files:
+
+```bash
+uv run python -m ml.model_comparison --jillian jillian_transactions_labeled.csv --savanna savanna_transactions.csv --output results/new_tuned_comparison
+uv run python -m ml.feature_ablation --jillian jillian_transactions_labeled.csv --savanna savanna_transactions.csv --output results/tables/new_ablation_scores.csv
+```
+
+The comparison command uses the `--output` name as a base for three CSV files
+in a `tables/` subfolder of its output directory: `*_scores.csv`,
+`*_selections.csv`, and `*_cross_person.csv`; it does not write a Markdown
+report. For the commands above, both tuned-comparison and feature-ablation
+tables are saved in `results/tables/`. Report
+graphics are in `results/media/`; the workflow-graphic writer defaults to that
+folder. Choose new output names to preserve earlier results. The feature-ablation
+runner saves aggregate scores as it progresses; use `--resume` only when the
+input data and experiment settings have not changed. Both commands keep the
+source CSVs private. The original `ml.first_result` runner remains available
+to reproduce the earlier checkpoint.
+
+To train models and export predicted categories separately, run:
 
 ```bash
 uv run python -c "from ml.ml_models import train_and_categorize; train_and_categorize()"
 ```
-
-5. Cross-person experiment (train on Savanna's file, test on Jillian's):
-
-```bash
-uv run python -c "from ml.ml_models import cross_person_experiment; cross_person_experiment()"
-```
-
-6. Compare against the baselines (`baseline_most_common`) — see
-   `CATEGORY_GUIDE.md` and `report.md` for the category vocabulary and results.
 
 ## 6. Using your own bank exports (data instructions)
 

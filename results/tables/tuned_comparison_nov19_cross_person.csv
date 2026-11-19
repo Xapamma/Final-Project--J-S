@@ -1,0 +1,11 @@
+Train,Test,Model,Selected features,Accuracy,Macro F1,Familiar descriptions
+Savanna,Jillian,most_common,—,0.6234,0.0768,0
+Savanna,Jillian,knn_tfidf,description,0.5623,0.2899,0
+Savanna,Jillian,knn_embeddings,description + type,0.5216,0.1948,0
+Savanna,Jillian,random_forest,description + type,0.5369,0.1116,0
+Savanna,Jillian,neural_network,description + amount=1,0.5089,0.1702,0
+Jillian,Savanna,most_common,—,0.3477,0.0397,0
+Jillian,Savanna,knn_tfidf,description + amount=1,0.3587,0.1462,0
+Jillian,Savanna,knn_embeddings,description + type,0.2866,0.1192,0
+Jillian,Savanna,random_forest,description + amount=1 + type,0.3557,0.0876,0
+Jillian,Savanna,neural_network,description + type,0.3307,0.1197,0
