@@ -45,11 +45,12 @@ def bar_chart(scores, metric, title):
         center = 166 + 176 * k
         for j, person in enumerate(PEOPLE):
             value = scores.loc[(scores.person == person) & (scores.method == method), metric].iloc[0]
-            x = center - 30 + 31 * j
+            # 38px bars, 6px apart: label centers sit 44px apart, wider than a 3-decimal label
+            x = center - 41 + 44 * j
             h = value * height
-            parts.append(f'<rect x="{x}" y="{bottom - h:.2f}" width="28" height="{h:.2f}" fill="{COLORS[person]}" />')
-            parts.append(f'<text x="{x + 14}" y="{bottom - h - 7:.2f}" font-size="11" '
-                         f'text-anchor="middle">{value:.4f}</text>')
+            parts.append(f'<rect x="{x}" y="{bottom - h:.2f}" width="38" height="{h:.2f}" fill="{COLORS[person]}" />')
+            parts.append(f'<text x="{x + 19}" y="{bottom - h - 7:.2f}" font-size="12" '
+                         f'text-anchor="middle">{value:.3f}</text>')
         parts.append(f'<text x="{center}" y="415" font-size="13" transform="rotate(-35 {center} 415)" '
                      f'text-anchor="end">{label}</text>')
     parts.append('<rect x="390" y="500" width="14" height="14" fill="#0072B2" />'
