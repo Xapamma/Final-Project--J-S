@@ -65,14 +65,20 @@ def run_checks(person, labeled_csv=None, out=None):
     processed_csv = PEOPLE[person]
     df = pd.read_csv(labeled_csv or processed_csv, parse_dates=["date"],
                      keep_default_na=False, na_values=[""])  # "N/A" is a real sub-category
+    blank_rows = int(df.isna().all(axis=1).sum())
+    df = df.loc[~df.isna().all(axis=1)].copy()
+    empty_unnamed = [column for column in df.columns
+                     if column.startswith("Unnamed:") and df[column].isna().all()]
+    df = df.drop(columns=empty_unnamed)
     raw_files = raw_file_summary(person)
     raw_total = int(raw_files["raw_rows"].sum()) if not raw_files.empty else 0
 
     has_raw = "raw_description" in df.columns
-    built_by = ("`ml/bank_statment_processor.py`" if has_raw
-                else "the Streamlit app export (no `raw_description`, so source-step counts are unavailable)")
+    built_by = ("includes processor-style `raw_description`" if has_raw
+                else "no `raw_description`; source-step counts may be unavailable")
     lines = [f"# Data quality checks - {person}", "",
-             f"Source: `{labeled_csv or processed_csv}` (built by {built_by})", ""]
+             f"Source: `{labeled_csv or processed_csv}` ({built_by})", "",
+             f"- Entirely empty rows excluded: **{blank_rows}**", ""]
 
     # 1. Sources
     lines += ["## Source files", "", _md_table(raw_files.set_index("file")) if not raw_files.empty else "(raw files not available on this machine)", ""]

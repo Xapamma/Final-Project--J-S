@@ -19,7 +19,7 @@ This report evaluates main categories using each person's dataset separately; it
 
 ## How to read these results
 
-These experiments predict main categories for 998 Savanna and 393 Jillian labeled transactions. Macro F1 gives each category equal weight; accuracy is the share of predictions that are correct. For within-person results, predictions are pooled from five outer folds grouped by normalized description. For cross-person results, the whole labeled dataset of one person is used for training and the other's for testing.
+These experiments predict main categories for 998 Savanna and 668 Jillian labeled transactions. Macro F1 gives each category equal weight; accuracy is the share of predictions that are correct. For within-person results, predictions are pooled from five outer folds grouped by normalized description. For cross-person results, the whole labeled dataset of one person is used for training and the other's for testing. Jillian’s current dataset includes 393 credit-card and 275 checking transactions, including transactions labeled as transfers; 10 completely empty spreadsheet rows were excluded.
 
 The ablation uses fixed model settings and the same splits for each feature variant. The description-only column gives macro F1; the other columns show the change in macro F1 when that single feature is added. A positive change is better. TF-IDF KNN only tests amount; type and account are not tested for it. The baseline for each row is that same model with description alone. See the [complete aggregate and fold scores](tables/feature_ablation_scores.csv) for accuracy and exact values.
 
@@ -29,70 +29,68 @@ For the ablation, both KNN versions use five neighbors and cosine distance; the 
 
 ![Change in within-person macro F1 when adding amount](media/feature_amount_effect.svg)
 
-Adding amount improves macro F1 in 7 of the eight person/model comparisons. For example, the change is +0.118 for Jillian's TF-IDF KNN and -0.083 for Savanna's random forest. Transaction type and account also have mixed effects, so there is no evidence here that every extra field helps every model.
+Adding amount improves macro F1 in 6 of 8 person/model comparisons. For example, its change is +0.046 for Jillian's TF-IDF KNN and -0.083 for Savanna's random forest. Type and account have model-dependent effects; these comparisons do not show that every extra field helps every model.
 
 ### Savanna
 
 | Model | Description F1 | + Amount | + Type | + Account |
 | --- | --- | --- | --- | --- |
-| TF-IDF KNN | 0.466 | 0.032 | — | — |
-| Embedding KNN | 0.421 | 0.063 | 0.016 | -0.068 |
+| TF-IDF KNN | 0.466 | +0.032 | — | — |
+| Embedding KNN | 0.421 | +0.063 | +0.016 | -0.068 |
 | Random forest | 0.498 | -0.083 | -0.055 | -0.004 |
-| Neural network | 0.556 | 0.038 | 0.007 | -0.015 |
+| Neural network | 0.556 | +0.038 | +0.007 | -0.015 |
 
 ### Jillian
 
 | Model | Description F1 | + Amount | + Type | + Account |
 | --- | --- | --- | --- | --- |
-| TF-IDF KNN | 0.308 | 0.118 | — | — |
-| Embedding KNN | 0.426 | 0.016 | 0.127 | 0 |
-| Random forest | 0.271 | 0.008 | 0.012 | 0.014 |
-| Neural network | 0.341 | 0.116 | -0.007 | 0.026 |
+| TF-IDF KNN | 0.532 | +0.046 | — | — |
+| Embedding KNN | 0.609 | -0.021 | -0.006 | -0.045 |
+| Random forest | 0.485 | +0.015 | +0.005 | +0.010 |
+| Neural network | 0.598 | +0.015 | +0.027 | +0.016 |
 
 ## 2. Do extra features transfer across people?
 
-The effect depends on the training direction and model. For example, adding amount changes TF-IDF KNN macro F1 by -0.041 when training on Savanna and testing on Jillian, but by +0.033 in the other direction. Adding amount improves 6 of the eight cross-person comparisons. These small, uneven gains do not establish reliable transfer.
+The effect depends on the training direction and model. Adding amount changes TF-IDF KNN macro F1 by +0.062 when training on Savanna and testing on Jillian, and by -0.013 in the other direction. It improves 6 of 8 cross-person comparisons. These comparisons alone do not establish reliable transfer.
 
 ### Savanna to Jillian
 
 | Model | Description F1 | + Amount | + Type | + Account |
 | --- | --- | --- | --- | --- |
-| TF-IDF KNN | 0.264 | -0.041 | — | — |
-| Embedding KNN | 0.153 | 0.006 | 0.023 | 0.049 |
-| Random forest | 0.164 | -0.025 | -0.054 | -0.021 |
-| Neural network | 0.132 | 0.028 | 0.027 | 0.025 |
+| TF-IDF KNN | 0.188 | +0.062 | — | — |
+| Embedding KNN | 0.154 | +0.051 | +0.034 | +0.032 |
+| Random forest | 0.139 | +0.007 | +0.008 | -0.017 |
+| Neural network | 0.158 | +0.012 | +0.040 | +0.036 |
 
 ### Jillian to Savanna
 
 | Model | Description F1 | + Amount | + Type | + Account |
 | --- | --- | --- | --- | --- |
-| TF-IDF KNN | 0.092 | 0.033 | — | — |
-| Embedding KNN | 0.086 | 0.035 | 0.033 | 0 |
-| Random forest | 0.044 | 0.032 | 0.033 | 0.002 |
-| Neural network | 0.064 | 0.016 | 0.055 | -0.004 |
+| TF-IDF KNN | 0.160 | -0.013 | — | — |
+| Embedding KNN | 0.121 | -0.004 | +0.029 | -0.005 |
+| Random forest | 0.079 | +0.052 | +0.035 | +0.002 |
+| Neural network | 0.126 | +0.021 | +0.042 | +0.018 |
 
 ## 3. Which models performed best?
 
-The table shows the highest observed macro F1 among the fixed-setting variants when training and testing within each person's data, and when training on one person and testing on the other. These are the highest observed values among the variants we tried, not unbiased estimates for a model chosen after looking at these results.
-
-For example, ‘Savanna to Jillian’ means the model was trained on Savanna's transactions and tested on Jillian's. The reverse comparison trains on Jillian and tests on Savanna. The table also shows the most-common-category baseline for context. Cross-person leaders were selected after seeing the other person's test results and should be read as exploratory.
+The table shows the highest observed macro F1 among the fixed-setting variants when training and testing within each person's data, and when training on one person and testing on the other. These are exploratory winners selected after looking at the results, not unbiased estimates for a model chosen in advance. “Savanna to Jillian” means training on Savanna and testing on Jillian; the reverse uses Jillian for training and Savanna for testing. The most-common-category baseline provides context.
 
 | Evaluation | Model | Features | Accuracy | Macro F1 | Baseline accuracy | Baseline macro F1 |
 | --- | --- | --- | --- | --- | --- | --- |
-| within: Savanna | Neural network | description + amount | 0.652 | 0.594 | 0.348 | 0.04 |
-| within: Jillian | Embedding KNN | description + type | 0.606 | 0.553 | 0.623 | 0.077 |
-| cross: Savanna to Jillian | TF-IDF KNN | description | 0.585 | 0.264 | 0.623 | 0.077 |
-| cross: Jillian to Savanna | TF-IDF KNN | description + amount | 0.3 | 0.125 | 0.348 | 0.04 |
+| within: Savanna | Neural network | description + amount | 0.652 | 0.594 | 0.348 | 0.040 |
+| within: Jillian | Neural network | description + type | 0.753 | 0.625 | 0.464 | 0.063 |
+| cross: Savanna to Jillian | TF-IDF KNN | description + amount | 0.484 | 0.249 | 0.464 | 0.063 |
+| cross: Jillian to Savanna | Neural network | description + type | 0.388 | 0.168 | 0.348 | 0.040 |
 
-The tuned-model comparison evaluates feature selection and parameter tuning on each outer training set before making outer-test predictions. Its results answer how the whole selection procedure performs, whereas the fixed-setting ablation isolates the contribution of individual inputs. In the tuned comparison, Neural network had the highest within-person macro F1 for Savanna; Embedding KNN had the highest for Jillian. The selected features and parameters can differ by outer fold.
+The tuned-model comparison selects features and parameters using each outer training set before predicting its held-out rows. It evaluates the whole selection procedure, while the fixed-setting ablation isolates individual inputs. In the tuned within-person comparison, neural network had the highest macro F1 for Savanna and embedding KNN had the highest for Jillian. Features and parameters can differ by outer fold.
 
 | Model | Savanna accuracy | Savanna macro F1 | Jillian accuracy | Jillian macro F1 |
 | --- | --- | --- | --- | --- |
-| Most-common baseline | 0.348 | 0.04 | 0.623 | 0.077 |
-| TF-IDF KNN | 0.604 | 0.508 | 0.718 | 0.446 |
-| Embedding KNN | 0.566 | 0.46 | 0.623 | 0.454 |
-| Random forest | 0.598 | 0.501 | 0.672 | 0.279 |
-| Neural network | 0.657 | 0.542 | 0.791 | 0.438 |
+| Most-common baseline | 0.348 | 0.040 | 0.464 | 0.063 |
+| TF-IDF KNN | 0.604 | 0.508 | 0.759 | 0.594 |
+| Embedding KNN | 0.567 | 0.460 | 0.762 | 0.612 |
+| Random forest | 0.598 | 0.501 | 0.754 | 0.506 |
+| Neural network | 0.657 | 0.542 | 0.781 | 0.578 |
 
 ![Within-person accuracy by model for Savanna and Jillian](media/accuracy_comparison.svg)
 
@@ -106,7 +104,9 @@ The tuned comparison's [within-person scores](tables/tuned_comparison_nov19_scor
 
 For each outer training set, feature selection and parameter tuning use the same inner training–validation splits in two rounds. First, validation scores compare feature sets using fixed model settings. Then the chosen features are kept while the same validation rows help compare parameter settings. Those tuning scores are not an independent evaluation of both choices; the held-out outer test fold evaluates the complete selection procedure.
 
-The tuned comparison fits feature preprocessing and oversamples rare categories only within each inner training split; inner validation and outer test rows are not oversampled. The selected model is then refit on the oversampled outer training data. Inner folds are stratified by category but do not group descriptions. When a category has only one row in an outer training set, feature selection and tuning fall back to the documented defaults.
+During feature selection and parameter tuning, each inner fold fits data-dependent preprocessing—such as amount standardization and the TF-IDF vocabulary—using only that fold's inner training rows. It then oversamples rare categories in those same training rows. The inner validation rows are transformed using the training-fitted preprocessing and are not oversampled. The pretrained sentence-embedding model is used as-is and is not fitted to our transactions.
+
+After selecting the features and parameters, the code fits preprocessing again using the **whole outer training set**, oversamples its rare categories, and refits the selected model. It applies that training-fitted preprocessing to the held-out outer test rows without oversampling them. Inner folds are stratified by category but do not group descriptions. When a category has only one row in an outer training set, feature selection and tuning fall back to the documented defaults.
 
 The neural network also uses an internal early-stopping validation split after oversampling, so its early-stopping decision can see repeated rows. This does not put outer test rows into training, but is a limitation of the training procedure. Categories with very few examples have unstable scores, and the two people have different category and account coverage. The comparisons are exploratory; five correlated cross-validation folds and two people do not support a simple independent-fold t-test or a claim about all users.
 
@@ -116,12 +116,12 @@ To rerun with private labeled CSVs, run `python -m ml.feature_ablation --output 
 
 ## Summary of answers
 
-1. **Within each person:** Adding amount improved macro F1 in 7 of eight person/model comparisons, but its effect varied by model. Type and account also had mixed effects. [See the within-person feature comparison](#1-do-extra-features-help-within-each-person).
-2. **Across people:** Adding amount improved macro F1 in 6 of eight comparisons, but the changes depended on the model and training direction. The results do not establish reliable transfer. [See the cross-person comparison](#2-do-extra-features-transfer-across-people).
-3. **Best model:** In the tuned within-person comparison, Neural network had the highest macro F1 for Savanna and Embedding KNN did for Jillian. Results vary with the evaluation and settings. [See the model comparison](#3-which-models-performed-best).
+1. **Within each person:** Adding amount improved macro F1 in 6 of 8 person/model comparisons. Its effect varies by model; see the [within-person feature comparison](#1-do-extra-features-help-within-each-person).
+2. **Across people:** Adding amount improved macro F1 in 6 of 8 comparisons. The effects depend on the model and training direction; see the [cross-person comparison](#2-do-extra-features-transfer-across-people).
+3. **Best model:** In the tuned within-person comparison, neural network had the highest macro F1 for Savanna and embedding KNN did for Jillian. See the [model comparison](#3-which-models-performed-best).
 
 ## Answers to the original project questions
 
-**Which machine learning techniques most accurately categorize transactions into main categories and subcategories?** For the main categories, the tuned neural network had the highest within-person accuracy for both Savanna (0.657) and Jillian (0.791). When giving each category equal weight through macro F1, the neural network led for Savanna (0.542), while embedding KNN led for Jillian (0.454). The most accurate model overall is therefore not necessarily the one that performs best across categories. These experiments did not evaluate subcategory predictions, so they do not answer which technique works best for subcategories. They evaluated each person's data separately rather than training a model on a combined dataset. [See the tuned scores](tables/tuned_comparison_nov19_scores.csv).
+**Which machine learning techniques most accurately categorize transactions into main categories and subcategories?** For main categories, the tuned model with the highest within-person accuracy was neural network for Savanna (0.657) and neural network for Jillian (0.781). By macro F1, neural network led for Savanna (0.542) and embedding KNN led for Jillian (0.612). These experiments did not evaluate subcategories or train a model on a combined dataset. [See the tuned scores](tables/tuned_comparison_nov19_scores.csv).
 
-**Can a model trained on one person's transactions categorize another person's transactions?** Partly, but the results do not show reliable transfer. In the tuned comparison, TF-IDF KNN achieved accuracy of 0.562 and macro F1 of 0.290 when trained on Savanna and tested on Jillian; the most-common-category baseline had higher accuracy (0.623). In the reverse direction, TF-IDF KNN achieved accuracy of 0.359 and macro F1 of 0.146, compared with baseline accuracy of 0.348. The differing category and account coverage and the small number of people limit what we can conclude. [See the cross-person scores](tables/tuned_comparison_nov19_cross_person.csv).
+**Can a model trained on one person's transactions categorize another person's transactions?** The results show partial transfer, but performance depends on the direction and metric. Tuned TF-IDF KNN achieved accuracy / macro F1 of 0.422 / 0.229 training on Savanna and testing on Jillian, and 0.383 / 0.160 in the reverse direction. The corresponding most-common baseline accuracies were 0.464 and 0.348. Different category and account coverage, and data from only two people, limit generalization. [See the cross-person scores](tables/tuned_comparison_nov19_cross_person.csv).

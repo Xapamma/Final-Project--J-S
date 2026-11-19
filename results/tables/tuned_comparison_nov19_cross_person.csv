@@ -1,11 +1,11 @@
 Train,Test,Model,Selected features,Accuracy,Macro F1,Familiar descriptions
-Savanna,Jillian,most_common,—,0.6234,0.0768,0
-Savanna,Jillian,knn_tfidf,description,0.5623,0.2899,0
-Savanna,Jillian,knn_embeddings,description + type,0.5216,0.1948,0
-Savanna,Jillian,random_forest,description + type,0.5369,0.1116,0
-Savanna,Jillian,neural_network,description + amount=1,0.5089,0.1702,0
-Jillian,Savanna,most_common,—,0.3477,0.0397,0
-Jillian,Savanna,knn_tfidf,description + amount=1,0.3587,0.1462,0
-Jillian,Savanna,knn_embeddings,description + type,0.2866,0.1192,0
-Jillian,Savanna,random_forest,description + amount=1 + type,0.3557,0.0876,0
-Jillian,Savanna,neural_network,description + type,0.3307,0.1197,0
+Savanna,Jillian,most_common,,0.4640718562874251,0.0633946830265848,0.0
+Savanna,Jillian,knn_tfidf,description,0.4221556886227545,0.2286448030147019,0.0
+Savanna,Jillian,knn_embeddings,description + type,0.4595808383233533,0.2129712567551906,0.0
+Savanna,Jillian,random_forest,description + type,0.4535928143712575,0.1469596263708792,0.0
+Savanna,Jillian,neural_network,description + amount=1,0.4446107784431137,0.1705371726437045,0.0
+Jillian,Savanna,most_common,,0.3476953907815631,0.0396911638547326,0.0
+Jillian,Savanna,knn_tfidf,description,0.3827655310621242,0.1602910027733217,0.0
+Jillian,Savanna,knn_embeddings,description,0.2645290581162324,0.1035286999592212,0.0
+Jillian,Savanna,random_forest,description + amount=1 + type + account,0.4248496993987976,0.1392067612873046,0.0
+Jillian,Savanna,neural_network,description + account,0.3376753507014028,0.1446824682638501,0.0

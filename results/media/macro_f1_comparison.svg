@@ -1,46 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="540" viewBox="0 0 1000 540" role="img" aria-label="Within-person macro F1">
-<rect width="1000" height="540" fill="white"/>
+<rect width="1000" height="540" fill="white" />
 <g font-family="Arial,sans-serif" fill="#222">
 <text x="500" y="30" font-size="22" text-anchor="middle" font-weight="bold">Within-person macro F1</text>
-<line x1="80" y1="390" x2="960" y2="390" stroke="#ddd"/>
+<line x1="80" y1="390" x2="960" y2="390" stroke="#ddd" />
 <text x="68" y="395" font-size="13" text-anchor="end">0.0</text>
-<line x1="80" y1="326" x2="960" y2="326" stroke="#ddd"/>
+<line x1="80" y1="326" x2="960" y2="326" stroke="#ddd" />
 <text x="68" y="331" font-size="13" text-anchor="end">0.2</text>
-<line x1="80" y1="262" x2="960" y2="262" stroke="#ddd"/>
+<line x1="80" y1="262" x2="960" y2="262" stroke="#ddd" />
 <text x="68" y="267" font-size="13" text-anchor="end">0.4</text>
-<line x1="80" y1="198" x2="960" y2="198" stroke="#ddd"/>
+<line x1="80" y1="198" x2="960" y2="198" stroke="#ddd" />
 <text x="68" y="203" font-size="13" text-anchor="end">0.6</text>
-<line x1="80" y1="134" x2="960" y2="134" stroke="#ddd"/>
+<line x1="80" y1="134" x2="960" y2="134" stroke="#ddd" />
 <text x="68" y="139" font-size="13" text-anchor="end">0.8</text>
-<line x1="80" y1="70" x2="960" y2="70" stroke="#ddd"/>
+<line x1="80" y1="70" x2="960" y2="70" stroke="#ddd" />
 <text x="68" y="75" font-size="13" text-anchor="end">1.0</text>
-<line x1="80" y1="70" x2="80" y2="390" stroke="#555"/>
-<line x1="80" y1="390" x2="960" y2="390" stroke="#555"/>
-<rect x="136" y="377.30" width="28" height="12.70" fill="#0072B2"/>
+<line x1="80" y1="70" x2="80" y2="390" stroke="#555" />
+<line x1="80" y1="390" x2="960" y2="390" stroke="#555" />
+<rect x="136" y="377.30" width="28" height="12.70" fill="#0072B2" />
 <text x="150" y="370.30" font-size="11" text-anchor="middle">0.0397</text>
-<rect x="167" y="365.42" width="28" height="24.58" fill="#E69F00"/>
-<text x="181" y="345.42" font-size="11" text-anchor="middle">0.0768</text>
+<rect x="167" y="369.71" width="28" height="20.29" fill="#E69F00" />
+<text x="181" y="349.71" font-size="11" text-anchor="middle">0.0634</text>
 <text x="166" y="415" font-size="13" transform="rotate(-35 166 415)" text-anchor="end">Most common</text>
-<rect x="312" y="227.31" width="28" height="162.69" fill="#0072B2"/>
-<text x="326" y="220.31" font-size="11" text-anchor="middle">0.5084</text>
-<rect x="343" y="247.22" width="28" height="142.78" fill="#E69F00"/>
-<text x="357" y="240.22" font-size="11" text-anchor="middle">0.4462</text>
+<rect x="312" y="227.30" width="28" height="162.70" fill="#0072B2" />
+<text x="326" y="220.30" font-size="11" text-anchor="middle">0.5084</text>
+<rect x="343" y="199.86" width="28" height="190.14" fill="#E69F00" />
+<text x="357" y="192.86" font-size="11" text-anchor="middle">0.5942</text>
 <text x="342" y="415" font-size="13" transform="rotate(-35 342 415)" text-anchor="end">TF-IDF KNN</text>
-<rect x="488" y="242.93" width="28" height="147.07" fill="#0072B2"/>
-<text x="502" y="235.93" font-size="11" text-anchor="middle">0.4596</text>
-<rect x="519" y="244.88" width="28" height="145.12" fill="#E69F00"/>
-<text x="533" y="224.88" font-size="11" text-anchor="middle">0.4535</text>
+<rect x="488" y="242.85" width="28" height="147.15" fill="#0072B2" />
+<text x="502" y="235.85" font-size="11" text-anchor="middle">0.4599</text>
+<rect x="519" y="194.14" width="28" height="195.86" fill="#E69F00" />
+<text x="533" y="187.14" font-size="11" text-anchor="middle">0.6121</text>
 <text x="518" y="415" font-size="13" transform="rotate(-35 518 415)" text-anchor="end">Embedding KNN</text>
-<rect x="664" y="229.71" width="28" height="160.29" fill="#0072B2"/>
-<text x="678" y="222.71" font-size="11" text-anchor="middle">0.5009</text>
-<rect x="695" y="300.59" width="28" height="89.41" fill="#E69F00"/>
-<text x="709" y="293.59" font-size="11" text-anchor="middle">0.2794</text>
+<rect x="664" y="229.72" width="28" height="160.28" fill="#0072B2" />
+<text x="678" y="222.72" font-size="11" text-anchor="middle">0.5009</text>
+<rect x="695" y="228.12" width="28" height="161.88" fill="#E69F00" />
+<text x="709" y="208.12" font-size="11" text-anchor="middle">0.5059</text>
 <text x="694" y="415" font-size="13" transform="rotate(-35 694 415)" text-anchor="end">Random forest</text>
-<rect x="840" y="216.69" width="28" height="173.31" fill="#0072B2"/>
+<rect x="840" y="216.69" width="28" height="173.31" fill="#0072B2" />
 <text x="854" y="209.69" font-size="11" text-anchor="middle">0.5416</text>
-<rect x="871" y="249.71" width="28" height="140.29" fill="#E69F00"/>
-<text x="885" y="242.71" font-size="11" text-anchor="middle">0.4384</text>
+<rect x="871" y="204.90" width="28" height="185.10" fill="#E69F00" />
+<text x="885" y="184.90" font-size="11" text-anchor="middle">0.5784</text>
 <text x="870" y="415" font-size="13" transform="rotate(-35 870 415)" text-anchor="end">Neural network</text>
-<rect x="390" y="500" width="14" height="14" fill="#0072B2"/><text x="412" y="512" font-size="14">Savanna</text>
-<rect x="530" y="500" width="14" height="14" fill="#E69F00"/><text x="552" y="512" font-size="14">Jillian</text>
+<rect x="390" y="500" width="14" height="14" fill="#0072B2" /><text x="412" y="512" font-size="14">Savanna</text>
+<rect x="530" y="500" width="14" height="14" fill="#E69F00" /><text x="552" y="512" font-size="14">Jillian</text>
 </g></svg>
