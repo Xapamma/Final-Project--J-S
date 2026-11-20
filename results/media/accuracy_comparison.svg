@@ -16,30 +16,30 @@
 <text x="68" y="75" font-size="13" text-anchor="end">1.0</text>
 <line x1="80" y1="70" x2="80" y2="390" stroke="#555" />
 <line x1="80" y1="390" x2="960" y2="390" stroke="#555" />
-<rect x="136" y="278.74" width="28" height="111.26" fill="#0072B2" />
-<text x="150" y="271.74" font-size="11" text-anchor="middle">0.3477</text>
-<rect x="167" y="241.50" width="28" height="148.50" fill="#E69F00" />
-<text x="181" y="234.50" font-size="11" text-anchor="middle">0.4641</text>
+<rect x="125" y="278.74" width="38" height="111.26" fill="#0072B2" />
+<text x="144" y="271.74" font-size="12" text-anchor="middle">0.348</text>
+<rect x="169" y="218.97" width="38" height="171.03" fill="#E69F00" />
+<text x="188" y="211.97" font-size="12" text-anchor="middle">0.534</text>
 <text x="166" y="415" font-size="13" transform="rotate(-35 166 415)" text-anchor="end">Most common</text>
-<rect x="312" y="196.65" width="28" height="193.35" fill="#0072B2" />
-<text x="326" y="189.65" font-size="11" text-anchor="middle">0.6042</text>
-<rect x="343" y="147.13" width="28" height="242.87" fill="#E69F00" />
-<text x="357" y="140.13" font-size="11" text-anchor="middle">0.7590</text>
+<rect x="301" y="197.62" width="38" height="192.38" fill="#0072B2" />
+<text x="320" y="190.62" font-size="12" text-anchor="middle">0.601</text>
+<rect x="345" y="151.66" width="38" height="238.34" fill="#E69F00" />
+<text x="364" y="144.66" font-size="12" text-anchor="middle">0.745</text>
 <text x="342" y="415" font-size="13" transform="rotate(-35 342 415)" text-anchor="end">TF-IDF KNN</text>
-<rect x="488" y="208.52" width="28" height="181.48" fill="#0072B2" />
-<text x="502" y="201.52" font-size="11" text-anchor="middle">0.5671</text>
-<rect x="519" y="146.17" width="28" height="243.83" fill="#E69F00" />
-<text x="533" y="139.17" font-size="11" text-anchor="middle">0.7620</text>
+<rect x="477" y="208.84" width="38" height="181.16" fill="#0072B2" />
+<text x="496" y="201.84" font-size="12" text-anchor="middle">0.566</text>
+<rect x="521" y="178.69" width="38" height="211.31" fill="#E69F00" />
+<text x="540" y="171.69" font-size="12" text-anchor="middle">0.660</text>
 <text x="518" y="415" font-size="13" transform="rotate(-35 518 415)" text-anchor="end">Embedding KNN</text>
-<rect x="664" y="198.58" width="28" height="191.42" fill="#0072B2" />
-<text x="678" y="191.58" font-size="11" text-anchor="middle">0.5982</text>
-<rect x="695" y="148.56" width="28" height="241.44" fill="#E69F00" />
-<text x="709" y="141.56" font-size="11" text-anchor="middle">0.7545</text>
+<rect x="653" y="199.54" width="38" height="190.46" fill="#0072B2" />
+<text x="672" y="192.54" font-size="12" text-anchor="middle">0.595</text>
+<rect x="697" y="183.66" width="38" height="206.34" fill="#E69F00" />
+<text x="716" y="176.66" font-size="12" text-anchor="middle">0.645</text>
 <text x="694" y="415" font-size="13" transform="rotate(-35 694 415)" text-anchor="end">Random forest</text>
-<rect x="840" y="179.66" width="28" height="210.34" fill="#0072B2" />
-<text x="854" y="172.66" font-size="11" text-anchor="middle">0.6573</text>
-<rect x="871" y="139.94" width="28" height="250.06" fill="#E69F00" />
-<text x="885" y="132.94" font-size="11" text-anchor="middle">0.7814</text>
+<rect x="829" y="179.66" width="38" height="210.34" fill="#0072B2" />
+<text x="848" y="172.66" font-size="12" text-anchor="middle">0.657</text>
+<rect x="873" y="177.03" width="38" height="212.97" fill="#E69F00" />
+<text x="892" y="170.03" font-size="12" text-anchor="middle">0.666</text>
 <text x="870" y="415" font-size="13" transform="rotate(-35 870 415)" text-anchor="end">Neural network</text>
 <rect x="390" y="500" width="14" height="14" fill="#0072B2" /><text x="412" y="512" font-size="14">Savanna</text>
 <rect x="530" y="500" width="14" height="14" fill="#E69F00" /><text x="552" y="512" font-size="14">Jillian</text>

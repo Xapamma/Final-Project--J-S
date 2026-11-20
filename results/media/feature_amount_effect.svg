@@ -5,28 +5,28 @@
 <text x="20" y="53" font-size="14">Compared with description alone; fixed model settings and the same held-out folds</text>
 <line x1="465" y1="75" x2="465" y2="360" stroke="#4a5568" />
 <text x="20" y="99" font-size="15">Savanna · TF-IDF KNN</text>
-<rect x="465.0" y="82" width="54.7" height="22" fill="#23877e" />
-<text x="529.7" y="99" font-size="15" text-anchor="start">+0.032</text>
+<rect x="465.0" y="82" width="58.1" height="22" fill="#23877e" />
+<text x="533.1" y="99" font-size="15" text-anchor="start">+0.034</text>
 <text x="20" y="133" font-size="15">Savanna · Embedding KNN</text>
-<rect x="465.0" y="116" width="107.9" height="22" fill="#23877e" />
-<text x="582.9" y="133" font-size="15" text-anchor="start">+0.063</text>
+<rect x="465.0" y="116" width="107.4" height="22" fill="#23877e" />
+<text x="582.4" y="133" font-size="15" text-anchor="start">+0.063</text>
 <text x="20" y="167" font-size="15">Savanna · Random forest</text>
-<rect x="323.3" y="150" width="141.7" height="22" fill="#bc6543" />
-<text x="313.3" y="167" font-size="15" text-anchor="end">-0.083</text>
+<rect x="324.8" y="150" width="140.2" height="22" fill="#bc6543" />
+<text x="314.8" y="167" font-size="15" text-anchor="end">-0.082</text>
 <text x="20" y="201" font-size="15">Savanna · Neural network</text>
 <rect x="465.0" y="184" width="64.8" height="22" fill="#23877e" />
 <text x="539.8" y="201" font-size="15" text-anchor="start">+0.038</text>
 <text x="20" y="235" font-size="15">Jillian · TF-IDF KNN</text>
-<rect x="465.0" y="218" width="78.0" height="22" fill="#23877e" />
-<text x="553.0" y="235" font-size="15" text-anchor="start">+0.046</text>
+<rect x="465.0" y="218" width="18.8" height="22" fill="#23877e" />
+<text x="493.8" y="235" font-size="15" text-anchor="start">+0.011</text>
 <text x="20" y="269" font-size="15">Jillian · Embedding KNN</text>
-<rect x="428.5" y="252" width="36.5" height="22" fill="#bc6543" />
-<text x="418.5" y="269" font-size="15" text-anchor="end">-0.021</text>
+<rect x="465.0" y="252" width="16.6" height="22" fill="#23877e" />
+<text x="491.6" y="269" font-size="15" text-anchor="start">+0.010</text>
 <text x="20" y="303" font-size="15">Jillian · Random forest</text>
-<rect x="465.0" y="286" width="25.1" height="22" fill="#23877e" />
-<text x="500.1" y="303" font-size="15" text-anchor="start">+0.015</text>
+<rect x="465.0" y="286" width="29.6" height="22" fill="#23877e" />
+<text x="504.6" y="303" font-size="15" text-anchor="start">+0.017</text>
 <text x="20" y="337" font-size="15">Jillian · Neural network</text>
-<rect x="465.0" y="320" width="25.9" height="22" fill="#23877e" />
-<text x="500.9" y="337" font-size="15" text-anchor="start">+0.015</text>
+<rect x="465.0" y="320" width="232.1" height="22" fill="#23877e" />
+<text x="707.1" y="337" font-size="15" text-anchor="start">+0.137</text>
 <text x="465" y="385" text-anchor="middle" font-size="14">0 = no change</text>
 </g></svg>

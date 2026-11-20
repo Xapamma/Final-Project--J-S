@@ -1,11 +1,11 @@
-Train,Test,Model,Selected features,Accuracy,Macro F1,Familiar descriptions
-Savanna,Jillian,most_common,,0.4640718562874251,0.0633946830265848,0.0
-Savanna,Jillian,knn_tfidf,description,0.4221556886227545,0.2286448030147019,0.0
-Savanna,Jillian,knn_embeddings,description + type,0.4595808383233533,0.2129712567551906,0.0
-Savanna,Jillian,random_forest,description + type,0.4535928143712575,0.1469596263708792,0.0
-Savanna,Jillian,neural_network,description + amount=1,0.4446107784431137,0.1705371726437045,0.0
-Jillian,Savanna,most_common,,0.3476953907815631,0.0396911638547326,0.0
-Jillian,Savanna,knn_tfidf,description,0.3827655310621242,0.1602910027733217,0.0
-Jillian,Savanna,knn_embeddings,description,0.2645290581162324,0.1035286999592212,0.0
-Jillian,Savanna,random_forest,description + amount=1 + type + account,0.4248496993987976,0.1392067612873046,0.0
-Jillian,Savanna,neural_network,description + account,0.3376753507014028,0.1446824682638501,0.0
+train,test,method,accuracy,macro_f1,familiar_descriptions,feature_variant,status
+Savanna,Jillian,most_common,0.5344827586206896,0.06966292134831462,0.0,,
+Savanna,Jillian,knn_tfidf,0.4879310344827586,0.28617844872546894,0.0,description,tuned
+Savanna,Jillian,knn_embeddings,0.5275862068965518,0.23592892985896144,0.0,description + type,tuned
+Savanna,Jillian,random_forest,0.5206896551724138,0.15578413444792755,0.0,description + type,tuned
+Savanna,Jillian,neural_network,0.5120689655172413,0.2190611396713121,0.0,description + amount=1,tuned
+Jillian,Savanna,most_common,0.34769539078156314,0.039691163854732626,0.0,,
+Jillian,Savanna,knn_tfidf,0.3777555110220441,0.1704037453997302,0.0,description,tuned
+Jillian,Savanna,knn_embeddings,0.4498997995991984,0.17851672623286843,0.0,description + type,tuned
+Jillian,Savanna,random_forest,0.43587174348697394,0.139554661337717,0.0,description + amount=1 + type,tuned
+Jillian,Savanna,neural_network,0.375751503006012,0.1461146821918039,0.0,description + amount=1,tuned
